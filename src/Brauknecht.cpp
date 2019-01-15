@@ -72,9 +72,6 @@ int x = 1;                                            //aktuelle Rast Nummer
 
 void hendi_special_handling();
 
-#pragma clang diagnostic push
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
-
 void setup() {
 #ifdef DEBUG
     Serial.begin(115200);
@@ -122,8 +119,6 @@ void setup() {
     setupWebserver();
     setupWIFI();
 }
-
-#pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
 //loop=============================================================
 void loop() {
@@ -262,8 +257,6 @@ void loop() {
 
     wdt_reset();
 }
-
-#pragma clang diagnostic pop
 
 void stateMachine() {
     switch (modus) {
