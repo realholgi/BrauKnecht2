@@ -3,9 +3,6 @@
 
 #define DEBUG
 
-#define SSID "eedv"
-#define PASS "mega%dude"
-
 enum PinAssignments {
     encoderPinA = D5,
     encoderPinB = D6,

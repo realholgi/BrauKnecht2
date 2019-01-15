@@ -179,7 +179,7 @@ void handleDataJson() {
             title2 += rasten;
             data += F("<li>Aufheizen auf ");
             data += rastTemp[x];
-            data += F("&deg;C<li>");
+            data += F("&deg;C</li>");
             break;
 
         case AUTO_RAST_ZEIT:
@@ -295,37 +295,17 @@ void handleRoot() {
 }
 
 bool setupWIFI() {
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(SSID, PASS);
+    Serial.println(F("Enabling WIFI in AP mode."));
+
+    WiFi.mode(WIFI_AP);
+
     MDNS.begin("bk");
+    delay(10);
 
-    Serial.println(F("Enabling WIFI"));
-    unsigned long startTime = millis();
-    while (WiFi.status() != WL_CONNECTED && millis() - startTime < 10000) {
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println();
+    WiFi.softAP("BrauKnecht", "brauknecht");
 
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.println(F("WiFi connected"));
-        Serial.print(F("IP address: "));
-        Serial.println(WiFi.localIP());
+    Serial.print(F("IP address: "));
+    Serial.println(WiFi.softAPIP());
 
-        Serial.print("signal strength (RSSI):");
-        Serial.print(WiFi.RSSI());
-        Serial.println(" dBm");
-        return true;
-    } else {
-        Serial.println(F("Can not connect to WiFi station. Go into AP mode."));
-        WiFi.mode(WIFI_AP);
-
-        delay(10);
-
-        WiFi.softAP("bk", "bk");
-
-        Serial.print(F("IP address: "));
-        Serial.println(WiFi.softAPIP());
-    }
     return false;
 }
