@@ -4,7 +4,7 @@
 enum MODUS {
     HAUPTSCHIRM = 0,
     MANUELL,
-    MAISCHEN,
+    MANUELL_HALTEN,
     SETUP_MENU,
     SETUP_HYSTERESE,
     SETUP_KOCHSCHWELLE,
@@ -13,7 +13,6 @@ enum MODUS {
     EINGABE_MAISCHTEMP,
     EINGABE_RAST_TEMP,
     EINGABE_RAST_ZEIT,
-    EINGABE_BRAUMEISTERRUF,
     EINGABE_ENDTEMP,
     AUTO_START,
     AUTO_MAISCHTEMP,
@@ -51,6 +50,9 @@ enum BM_ALARM_MODE {
 #define KOCHSCHWELLE_MEM 25
 
 #define HENDI_MAX_RUNTIME 85
+
+#define APSSID "BrauKnecht"
+#define APPSK "brauknecht"
 
 extern int sekunden;
 extern int minuten;

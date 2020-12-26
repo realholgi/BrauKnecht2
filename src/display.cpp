@@ -57,10 +57,10 @@ void printNumI_lcd(int num, int x, int y) {
     print_lcd(st, x, y);
 }
 
-void printNumF_lcd(double num, int x, int y) {
+void printNumF_lcd(float num, int x, int y) {
     char st[DISPLAY_SIZE_X + 10];
 
-    dtostrf(num, 0, 0, st);
+    dtostrf(num, 0, 1, st);
     print_lcd(st, x, y);
 }
 

@@ -22,6 +22,7 @@ void funktion_hopfenzeitautomatik();
 void _next_koch_step();
 void funktion_abbruch();
 void funktion_temperatur();
+void funktion_temperatur_halten();
 void funktion_maischmenue();
 void funktion_setupmenu();
 void watchdogSetup(void);

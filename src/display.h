@@ -16,7 +16,7 @@ void lcd_clear();
 void print_lcd(char *st, int x, int y);
 void print_lcdP(const char *st, int x, int y);
 void printNumI_lcd(int num, int x, int y);
-void printNumF_lcd(double num, int x, int y);
+void printNumF_lcd(float num, int x, int y);
 void print_lcd_minutes(int value, int x, int y);
 void print_lcd_deg(int x, int y);
 

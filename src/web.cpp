@@ -8,6 +8,9 @@
 #include "html.h"
 #include "web.h"
 
+const char *ap_ssid = APSSID;
+const char *ap_password = APPSK;
+
 ESP8266WebServer HTTP(80);
 
 void handle_http() {
@@ -44,8 +47,9 @@ void handleNotFound() {
 }
 
 void handleDataJson() {
-    DynamicJsonBuffer jsonBuffer;
-    JsonObject &json = jsonBuffer.createObject();
+    const size_t CAPACITY = JSON_OBJECT_SIZE(1);
+    StaticJsonDocument<CAPACITY> doc;
+    JsonObject json = doc.to<JsonObject>();
 
     String title;
     String data;
@@ -57,10 +61,6 @@ void handleDataJson() {
     switch (modus) {
         case HAUPTSCHIRM:
             title = F("Hauptmenu");
-            break;
-
-        case MAISCHEN:
-            title = F("Maischmenu");
             break;
 
         case MANUELL:
@@ -114,41 +114,6 @@ void handleDataJson() {
             data += F("<li>Rastzeit: ");
             data += rastZeit[x];
             data += F(" min.</li>");
-            break;
-
-        case EINGABE_BRAUMEISTERRUF:
-            title = F("Maisch-Automatik");
-            title2 = F("Rast ");
-            title2 += x;
-            title2 += F(" von ");
-            title2 += rasten;
-
-            data = F("<li>Rasttemperatur: ");
-            data += rastTemp[x];
-            data += F("&deg;C</li>");
-
-            data += F("<li>Rastzeit: ");
-            data += rastZeit[x];
-            data += F(" min.</li>");
-
-            data += "<li>Ruf:  ";
-            switch (braumeister[x]) {
-                case BM_ALARM_AUS:
-                    data += F("nein");
-                    break;
-
-                case BM_ALARM_WAIT:
-                    data += F("anhalten");
-                    break;
-
-                case BM_ALARM_SIGNAL:
-                    data += F("Signal");
-                    break;
-
-                default:
-                    data += braumeister[x];
-            }
-            data += F("</li>");
             break;
 
         case EINGABE_ENDTEMP:
@@ -286,7 +251,8 @@ void handleDataJson() {
 //    all_hopfen_zeit.remove(0);
 
     String message = "";
-    json.printTo(message);
+    serializeJson(doc, message);
+
     HTTP.send(200, "application/json;charset=utf-8", message);
 }
 
@@ -302,7 +268,7 @@ bool setupWIFI() {
     MDNS.begin("bk");
     delay(10);
 
-    WiFi.softAP("BrauKnecht", "brauknecht");
+    WiFi.softAP(ap_ssid, ap_password);
 
     Serial.print(F("IP address: "));
     Serial.println(WiFi.softAPIP());

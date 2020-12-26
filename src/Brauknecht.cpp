@@ -1,4 +1,5 @@
 #pragma GCC diagnostic ignored "-Wwrite-strings"
+#pragma GCC diagnostic ignored "-Wsign-compare"
 
 #include <Arduino.h>
 #include <Encoder.h>
@@ -80,10 +81,10 @@ void setup() {
 
     lcd_init();
 
-    print_lcdP(PSTR("BK V2.5 - LC2004"), LEFT, 0);
-    print_lcdP(PSTR("Arduino"), LEFT, 1);
+    print_lcdP(PSTR("BK V2.6 - LC2004"), LEFT, 0);
+    print_lcdP(PSTR(""), LEFT, 1);
     print_lcdP(PSTR(":)"), RIGHT, 2);
-    print_lcdP(PSTR("realholgi & fg100"), RIGHT, 3);
+    print_lcdP(PSTR("by realholgi"), LEFT, 3);
     delay(500);
 
     drehen = sollwert;
@@ -116,8 +117,8 @@ void setup() {
 
     watchdogSetup();
 
-    setupWebserver();
     setupWIFI();
+    setupWebserver();
 }
 
 //loop=============================================================
@@ -270,9 +271,9 @@ void stateMachine() {
             funktion_temperatur();
             break;
 
-        case MAISCHEN:
-            regelung = REGL_AUS;
-            funktion_maischmenue();
+        case MANUELL_HALTEN:
+            regelung = REGL_MAISCHEN;
+            funktion_temperatur_halten();
             break;
 
         case SETUP_MENU:
@@ -314,11 +315,6 @@ void stateMachine() {
             funktion_zeiteingabe();
             break;
 
-        case EINGABE_BRAUMEISTERRUF:
-            regelung = REGL_AUS;
-            funktion_braumeister();
-            break;
-
         case EINGABE_ENDTEMP:
             regelung = REGL_AUS;
             funktion_endtempeingabe();
@@ -330,7 +326,7 @@ void stateMachine() {
             break;
 
         case AUTO_MAISCHTEMP:
-            regelung = REGL_MAISCHEN;;
+            regelung = REGL_MAISCHEN;
             funktion_maischtemperaturautomatik();
             break;
 
@@ -432,9 +428,9 @@ void funktion_hauptschirm() {
         lcd_clear();
         drehen = 0;
         anfang = false;
-        print_lcdP(PSTR("Maischen"), 2, 0);
-        print_lcdP(PSTR("Kochen"), 2, 1);
-        print_lcdP(PSTR("       "), 2, 2);
+        print_lcdP(PSTR("Maischautomatik"), 2, 0);
+        print_lcdP(PSTR("Maischen manuell"), 2, 1);
+        print_lcdP(PSTR("Kochen"), 2, 2);
         print_lcdP(PSTR("Setup"), 2, 3);
     }
 
@@ -443,9 +439,12 @@ void funktion_hauptschirm() {
     menu_zeiger(drehen);
     switch (drehen) {
         case 0:
-            rufmodus = MAISCHEN;
+            rufmodus = AUTOMATIK;
             break;
         case 1:
+            rufmodus = MANUELL;
+            break;
+        case 2:
             rufmodus = KOCHEN;
             break;
         case 3:
@@ -458,35 +457,6 @@ void funktion_hauptschirm() {
 
     if (warte_und_weiter(rufmodus)) {
         lcd_clear();
-    }
-}
-
-void funktion_maischmenue() {
-    if (anfang) {
-        lcd_clear();
-        drehen = 0;
-        anfang = false;
-        print_lcdP(PSTR("Automatik"), 2, 0);
-        print_lcdP(PSTR("Manuell"), 2, 1);
-    }
-
-    drehen = constrain(drehen, 0, 1);
-
-    menu_zeiger(drehen);
-    switch (drehen) {
-        case 0:
-            rufmodus = AUTOMATIK;
-            break;
-        case 1:
-            rufmodus = MANUELL;
-            break;
-
-        default:
-            rufmodus = ABBRUCH;
-            break;
-    }
-
-    if (warte_und_weiter(rufmodus)) {
         if (modus == MANUELL) {
             //Übergabe an Modus1
             drehen = (int) isttemp + 10; // Vorgabewert 10°C über IstWert
@@ -540,13 +510,31 @@ void funktion_temperatur() {
     }
 
     if (modus == MANUELL && isttemp >= sollwert) { // Manuell -> Sollwert erreicht
-        rufmodus = MANUELL;                //Abbruch nach Rufalarm
-        modus = BRAUMEISTERRUFALARM;
-        regelung = REGL_AUS;
-        heizung = false;
-        y = 0;
-        braumeister[y] = BM_ALARM_SIGNAL;
+        //Alarm -----
+        if (millis() >= (altsekunden + 1000)) { //Blinken der Anzeige und RUF
+            print_lcdP(PSTR("   "), LEFT, 3);
+            beeperOnOff(false);
+            if (millis() >= (altsekunden + 1500)) {
+                altsekunden = millis();
+                pause++;
+            }
+        } else {
+            print_lcdP(PSTR("RUF"), LEFT, 3);
+            if (pause <= 4) {
+                beeperOnOff(true);
+            }
+            if (pause > 8) {
+                pause = 0;
+            }
+        }
+        warte_und_weiter(MANUELL_HALTEN);
     }
+}
+
+void funktion_temperatur_halten() {
+    sollwert = drehen;
+
+    // warte_und_weiter(ABBRUCH); // TODO will man das wirklich?
 }
 
 void funktion_rastanzahl() {
@@ -564,9 +552,9 @@ void funktion_rastanzahl() {
 
     switch (drehen) {
         case 1:
-            rastTemp[1] = 67;
+            rastTemp[1] = 66;
             rastZeit[1] = 60;
-            maischtemp = 65;
+            maischtemp = 67;
             break;
 
         case 2:
@@ -671,33 +659,9 @@ void funktion_zeiteingabe() {
 
     print_lcd_minutes(rastZeit[x], RIGHT, 2);
 
-    warte_und_weiter(EINGABE_BRAUMEISTERRUF);
-}
+    //warte_und_weiter(EINGABE_BRAUMEISTERRUF);
 
-void funktion_braumeister() {
-    if (anfang) {
-        drehen = (int) braumeister[x];
-        anfang = false;
-    }
-
-    drehen = constrain(drehen, BM_ALARM_MIN, BM_ALARM_MAX);
-    braumeister[x] = (BM_ALARM_MODE) drehen;
-
-    print_lcdP(PSTR("Ruf"), LEFT, 2);
-
-    switch (braumeister[x]) {
-        case BM_ALARM_AUS:
-            print_lcdP(PSTR("    Nein"), RIGHT, 2);
-            break;
-
-        case BM_ALARM_WAIT:
-            print_lcdP(PSTR("Anhalten"), RIGHT, 2);
-            break;
-
-        case BM_ALARM_SIGNAL:
-            print_lcdP(PSTR("  Signal"), RIGHT, 2);
-            break;
-    }
+    braumeister[x] = BM_ALARM_AUS;
 
     if (warte_und_weiter(EINGABE_ENDTEMP)) {
         if (x < rasten) {
@@ -709,6 +673,42 @@ void funktion_braumeister() {
         }
     }
 }
+
+//void funktion_braumeister() {
+//    if (anfang) {
+//        drehen = (int) braumeister[x];
+//        anfang = false;
+//    }
+//
+//    drehen = constrain(drehen, BM_ALARM_MIN, BM_ALARM_MAX);
+//    braumeister[x] = (BM_ALARM_MODE) drehen;
+//
+//    print_lcdP(PSTR("Ruf"), LEFT, 2);
+//
+//    switch (braumeister[x]) {
+//        case BM_ALARM_AUS:
+//            print_lcdP(PSTR("    Nein"), RIGHT, 2);
+//            break;
+//
+//        case BM_ALARM_WAIT:
+//            print_lcdP(PSTR("Anhalten"), RIGHT, 2);
+//            break;
+//
+//        case BM_ALARM_SIGNAL:
+//            print_lcdP(PSTR("  Signal"), RIGHT, 2);
+//            break;
+//    }
+//
+//    if (warte_und_weiter(EINGABE_ENDTEMP)) {
+//        if (x < rasten) {
+//            x++;
+//            modus = EINGABE_RAST_TEMP; // Sprung zur Rasttemperatureingabe
+//        } else {
+//            x = 1;
+//            modus = EINGABE_ENDTEMP; // Sprung zur Rastzeiteingabe
+//        }
+//    }
+//}
 
 void funktion_endtempeingabe() {
     if (anfang) {
