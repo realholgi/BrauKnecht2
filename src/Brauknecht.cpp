@@ -2,11 +2,12 @@
 #pragma GCC diagnostic ignored "-Wsign-compare"
 
 #include <Arduino.h>
-#include <Encoder.h>
+#include <ClickEncoder.h> // https://github.com/soligen2010/encoder
 #include <OneWire.h>
 #include <DallasTemperature.h>
 #include <TimeLib.h>
 #include <EEPROM.h>
+#include <Ticker.h>
 
 #include "global.h"
 #include "config.h"
@@ -17,7 +18,8 @@
 OneWire oneWire(oneWirePin);
 DallasTemperature sensors(&oneWire);
 DeviceAddress insideThermometer;
-Encoder encoder(encoderPinA, encoderPinB);
+ClickEncoder encoder1 = ClickEncoder(encoderPinA, encoderPinB, tasterPin, ENCODER_STEPS_PER_NOTCH);
+Ticker ticker;
 
 #ifdef DEBUG
 unsigned long serwartezeit = 0;
@@ -25,8 +27,7 @@ unsigned long serwartezeit = 0;
 
 volatile int oldnumber = 0;
 bool ButtonPressed = false;
-int drehen = 0;
-int fuenfmindrehen = 0;
+volatile int drehen = 0;
 bool anfang = true;
 unsigned long altsekunden;
 REGEL_MODE regelung = REGL_AUS;
@@ -95,9 +96,8 @@ void setup() {
     heizungOnOff(false);
     beeperOnOff(false);
 
-    pinMode(tasterPin, INPUT_PULLUP);
-    digitalWrite(tasterPin, HIGH);  // Turn on internal pullup resistor
-
+    encoder1.setButtonHeldEnabled(true);
+    encoder1.setDoubleClickEnabled(false);
 #ifndef DEBUG
     for (x = 1; x <= 3; x++) {
       beeperOn(true);
@@ -119,6 +119,8 @@ void setup() {
 
     setupWIFI();
     setupWebserver();
+
+    ticker.attach_ms(1, encoderTicker);
 }
 
 //loop=============================================================
@@ -128,21 +130,6 @@ void loop() {
     sekunden = second();
     minutenwert = minute();
     stunden = hour();
-
-    long number = encoder.read();
-    if (number != oldnumber) {
-        {
-            if (number > oldnumber) { // < > Zeichen ändern = Encoderdrehrichtung ändern
-                ++drehen;
-                fuenfmindrehen = fuenfmindrehen + 5;
-            } else {
-                --drehen;
-                fuenfmindrehen = fuenfmindrehen - 5;
-            }
-            delay(100); // entprellen
-            oldnumber = encoder.read();
-        }
-    }
 
     sensors.requestTemperatures();
     sensorwert = sensors.getTempC(insideThermometer);
@@ -227,6 +214,13 @@ void loop() {
             hysterese = 0;
             wartezeit = millis();
         }
+
+        // Wenn 3 Grad unter soll, dann alles egal und Heizung an
+        if ((!heizung) && (isttemp <= (sollwert - 3))) {
+            heizung = true;
+            hysterese = 0;
+            wartezeit = millis();
+        }
     }
 
     //Kochen => dauernd ein----------------------------------------------
@@ -260,6 +254,7 @@ void loop() {
 }
 
 void stateMachine() {
+    encoder1.setAccelerationEnabled(false);
     switch (modus) {
         case HAUPTSCHIRM:
             regelung = REGL_AUS;
@@ -268,6 +263,7 @@ void stateMachine() {
 
         case MANUELL:
             regelung = REGL_MAISCHEN;
+            encoder1.setAccelerationEnabled(true);
             funktion_temperatur();
             break;
 
@@ -301,22 +297,26 @@ void stateMachine() {
             break;
 
         case EINGABE_MAISCHTEMP:
+            encoder1.setAccelerationEnabled(true);
             regelung = REGL_AUS;
             funktion_maischtemperatur();
             break;
 
         case EINGABE_RAST_TEMP:
             regelung = REGL_AUS;
+            encoder1.setAccelerationEnabled(true);
             funktion_rasteingabe();
             break;
 
         case EINGABE_RAST_ZEIT:
             regelung = REGL_AUS;
+            encoder1.setAccelerationEnabled(true);
             funktion_zeiteingabe();
             break;
 
         case EINGABE_ENDTEMP:
             regelung = REGL_AUS;
+            encoder1.setAccelerationEnabled(true);
             funktion_endtempeingabe();
             break;
 
@@ -327,21 +327,25 @@ void stateMachine() {
 
         case AUTO_MAISCHTEMP:
             regelung = REGL_MAISCHEN;
+            encoder1.setAccelerationEnabled(true);
             funktion_maischtemperaturautomatik();
             break;
 
         case AUTO_RAST_TEMP:
             regelung = REGL_MAISCHEN;
+            encoder1.setAccelerationEnabled(true);
             funktion_tempautomatik();
             break;
 
         case AUTO_RAST_ZEIT:
             regelung = REGL_MAISCHEN;
+            encoder1.setAccelerationEnabled(true);
             funktion_zeitautomatik();
             break;
 
         case AUTO_ENDTEMP:
             regelung = REGL_MAISCHEN;
+            encoder1.setAccelerationEnabled(true);
             funktion_endtempautomatik();
             break;
 
@@ -354,6 +358,7 @@ void stateMachine() {
             break;
 
         case KOCHEN:
+            encoder1.setAccelerationEnabled(true);
             funktion_kochzeit();
             break;
 
@@ -362,6 +367,7 @@ void stateMachine() {
             break;
 
         case EINGABE_HOPFENGABEN_ZEIT:
+            encoder1.setAccelerationEnabled(true);
             funktion_hopfengaben();
             break;
 
@@ -385,17 +391,31 @@ void stateMachine() {
     }
 }
 
+void ICACHE_RAM_ATTR encoderTicker() {
+    encoder1.service();
+    drehen += encoder1.getValue();
+}
+
 bool getButton() {
-    int buttonVoltage = digitalRead(tasterPin);
-    if (buttonVoltage == HIGH) {
-        ButtonPressed = false;
-        abbruchtaste = millis();
-    } else if (buttonVoltage == LOW) {
-        ButtonPressed = true;
-        if (millis() >= (abbruchtaste + 2000)) {     //Taste 2 Sekunden drücken
-            modus = ABBRUCH;
+    ButtonPressed = false;
+
+    ClickEncoder::Button b = encoder1.getButton();
+    if (b != ClickEncoder::Open) {
+        switch (b) {
+            case ClickEncoder::Held:
+                modus = ABBRUCH;
+                break;
+
+            case ClickEncoder::Clicked:
+                ButtonPressed = true;
+                break;
+
+            default:
+                ButtonPressed = false;
+                break;
         }
     }
+
     return ButtonPressed;
 }
 
@@ -567,11 +587,11 @@ void funktion_rastanzahl() {
 
         case 3:
             rastTemp[1] = 43;
-            rastZeit[1] = 20;
+            rastZeit[1] = 15;
             rastTemp[2] = 62;
-            rastZeit[2] = 30;
+            rastZeit[2] = 20;
             rastTemp[3] = 72;
-            rastZeit[3] = 30;
+            rastZeit[3] = 35;
             maischtemp = 45;
             break;
 
@@ -650,12 +670,12 @@ void funktion_rasteingabe() {
 
 void funktion_zeiteingabe() {
     if (anfang) {
-        fuenfmindrehen = rastZeit[x];
+        drehen = rastZeit[x];
         anfang = false;
     }
 
-    fuenfmindrehen = constrain(fuenfmindrehen, 1, 99);
-    rastZeit[x] = fuenfmindrehen;
+    drehen = constrain(drehen, 1, 99);
+    rastZeit[x] = drehen;
 
     print_lcd_minutes(rastZeit[x], RIGHT, 2);
 
@@ -673,42 +693,6 @@ void funktion_zeiteingabe() {
         }
     }
 }
-
-//void funktion_braumeister() {
-//    if (anfang) {
-//        drehen = (int) braumeister[x];
-//        anfang = false;
-//    }
-//
-//    drehen = constrain(drehen, BM_ALARM_MIN, BM_ALARM_MAX);
-//    braumeister[x] = (BM_ALARM_MODE) drehen;
-//
-//    print_lcdP(PSTR("Ruf"), LEFT, 2);
-//
-//    switch (braumeister[x]) {
-//        case BM_ALARM_AUS:
-//            print_lcdP(PSTR("    Nein"), RIGHT, 2);
-//            break;
-//
-//        case BM_ALARM_WAIT:
-//            print_lcdP(PSTR("Anhalten"), RIGHT, 2);
-//            break;
-//
-//        case BM_ALARM_SIGNAL:
-//            print_lcdP(PSTR("  Signal"), RIGHT, 2);
-//            break;
-//    }
-//
-//    if (warte_und_weiter(EINGABE_ENDTEMP)) {
-//        if (x < rasten) {
-//            x++;
-//            modus = EINGABE_RAST_TEMP; // Sprung zur Rasttemperatureingabe
-//        } else {
-//            x = 1;
-//            modus = EINGABE_ENDTEMP; // Sprung zur Rastzeiteingabe
-//        }
-//    }
-//}
 
 void funktion_endtempeingabe() {
     if (anfang) {
@@ -954,11 +938,11 @@ void funktion_hysterese() {
         print_lcdP(PSTR("Hysterese"), LEFT, 0);
         print_lcdP(PSTR("Eingabe"), RIGHT, 0);
 
-        fuenfmindrehen = hysteresespeicher;
+        drehen = hysteresespeicher;
     }
 
-    fuenfmindrehen = constrain(fuenfmindrehen, 0, 40); //max. 4,0 Sekunden Hysterese
-    hysteresespeicher = static_cast<byte>(fuenfmindrehen);
+    drehen = constrain(drehen, 0, 40); //max. 4,0 Sekunden Hysterese
+    hysteresespeicher = static_cast<byte>(drehen);
 
     printNumF_lcd(float(hysteresespeicher) / 10, RIGHT, 1);
 
@@ -990,15 +974,15 @@ void funktion_kochschwelle() {
 void funktion_kochzeit() {
     if (anfang) {
         lcd_clear();
-        fuenfmindrehen = kochzeit;
+        drehen = kochzeit;
         anfang = false;
         print_lcdP(PSTR("Kochen"), LEFT, 0);
         print_lcdP(PSTR("Eingabe"), RIGHT, 0);
         print_lcdP(PSTR("Zeit"), LEFT, 1);
     }
 
-    fuenfmindrehen = constrain(fuenfmindrehen, 20, 180);
-    kochzeit = fuenfmindrehen;
+    drehen = constrain(drehen, 20, 180);
+    kochzeit = drehen;
 
     print_lcd_minutes(kochzeit, RIGHT, 1);
 
@@ -1026,7 +1010,7 @@ void funktion_anzahlhopfengaben() {
 void funktion_hopfengaben() {
     if (anfang) {
         x = 1;
-        fuenfmindrehen = hopfenZeit[x];
+        drehen = hopfenZeit[x];
         anfang = false;
         lcd_clear();
         print_lcdP(PSTR("Kochen"), LEFT, 0);
@@ -1037,15 +1021,15 @@ void funktion_hopfengaben() {
     print_lcdP(PSTR(". Hopfengabe"), 1, 1);
     print_lcdP(PSTR("nach"), LEFT, 2);
 
-    fuenfmindrehen = constrain(fuenfmindrehen, hopfenZeit[(x - 1)] + 5, kochzeit - 5);
-    hopfenZeit[x] = fuenfmindrehen;
+    drehen = constrain(drehen, hopfenZeit[(x - 1)] + 5, kochzeit - 5);
+    hopfenZeit[x] = drehen;
 
     print_lcd_minutes(hopfenZeit[x], RIGHT, 2);
 
     if (warte_und_weiter(modus)) {
         if (x < hopfenanzahl) {
             x++;
-            fuenfmindrehen = hopfenZeit[x];
+            drehen = hopfenZeit[x];
             print_lcdP(PSTR("  "), LEFT, 1);
             print_lcdP(PSTR("   "), 13, 2);
             delay(400);
@@ -1188,11 +1172,7 @@ void funktion_abbruch() {
     pause = 0;
     drehen = sollwert;
 
-    if (millis() >= abbruchtaste + 5000) { // länger als 5 Sekunden drücken
-        modus = SETUP_MENU;
-    } else {
-        modus = HAUPTSCHIRM;
-    }
+    modus = HAUPTSCHIRM;
 }
 //------------------------------------------------------------------
 

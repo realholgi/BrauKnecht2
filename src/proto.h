@@ -30,6 +30,7 @@ void beeperOnOff(bool value);
 void heizungOnOff(bool value);
 void funktion_hauptschirm();
 
+void encoderTicker();
 bool getButton();
 void stateMachine();
 void readEepromData();

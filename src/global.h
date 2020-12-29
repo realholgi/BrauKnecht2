@@ -51,6 +51,8 @@ enum BM_ALARM_MODE {
 
 #define HENDI_MAX_RUNTIME 85
 
+#define ENCODER_STEPS_PER_NOTCH    4   // Change this depending on which encoder is used
+
 #define APSSID "BrauKnecht"
 #define APPSK "brauknecht"
 
