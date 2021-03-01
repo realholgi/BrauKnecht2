@@ -47,10 +47,6 @@ void handleNotFound() {
 }
 
 void handleDataJson() {
-    const size_t CAPACITY = JSON_OBJECT_SIZE(1);
-    StaticJsonDocument<CAPACITY> doc;
-    JsonObject json = doc.to<JsonObject>();
-
     String title;
     String data;
     String title2 = "Details";
@@ -214,6 +210,8 @@ void handleDataJson() {
             title += modus;
     }
 
+    DynamicJsonDocument json(1024);
+
     json["title"] = title;
     json["title2"] = title2;
     json["temp_ist"] = isttemp;
@@ -238,20 +236,8 @@ void handleDataJson() {
     json["kochzeit"] = kochzeit;
     json["hopfenanzahl"] = hopfenanzahl;
 
-//    JsonArray &all_rast_temp = json.createNestedArray("all_rast_temp");
-//    all_rast_temp.copyFrom(rastTemp);
-//    all_rast_temp.remove(0);
-//
-//    JsonArray &all_rast_zeit = json.createNestedArray("all_rast_zeit");
-//    all_rast_zeit.copyFrom(rastZeit);
-//    all_rast_zeit.remove(0);
-//
-//    JsonArray &all_hopfen_zeit = json.createNestedArray("all_hopfen_zeit");
-//    all_hopfen_zeit.copyFrom(hopfenZeit);
-//    all_hopfen_zeit.remove(0);
-
     String message = "";
-    serializeJson(doc, message);
+    serializeJson(json, message);
 
     HTTP.send(200, "application/json;charset=utf-8", message);
 }
@@ -265,10 +251,10 @@ bool setupWIFI() {
 
     WiFi.mode(WIFI_AP);
 
-    MDNS.begin("bk");
+    MDNS.begin("bk"); // no pass => no portal?
     delay(10);
 
-    WiFi.softAP(ap_ssid, ap_password);
+    WiFi.softAP(ap_ssid);
 
     Serial.print(F("IP address: "));
     Serial.println(WiFi.softAPIP());

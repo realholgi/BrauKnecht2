@@ -1074,7 +1074,7 @@ void funktion_hopfenzeitautomatik() {
         minutenwert = minute();
         stunden = hour();
 
-
+        anfang = false;
         print_lcdP(PSTR("00:00"), 11, 1);
     }
 

@@ -4,7 +4,7 @@
 
 #define DISPLAY_SIZE_X 20
 #define DISPLAY_SIZE_Y 4
-#define DISPLAY_ADDRESS 0x27 //# 0x27=proto / 0x3f=box
+#define DISPLAY_ADDRESS 0x3f //# 0x27=proto / 0x3f=box
 
 #define LEFT 0
 #define RIGHT 9999
