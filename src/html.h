@@ -62,9 +62,14 @@ const char PAGE_Kochen[] PROGMEM = R"=====(
      axios.get('data.json')
        .then(function (response) {   
           document.getElementById('title').innerHTML = response.data.title;
-          document.getElementById('temp_ist').innerHTML = response.data.temp_ist.round(1);
           document.getElementById('temp_soll').innerHTML = response.data.temp_soll.round(0);
           document.getElementById('heizung').innerHTML = response.data.heizung;
+
+          if (response.data.regelung == 0) {
+            document.getElementById('temp_ist').innerHTML = "--";
+          } else {
+            document.getElementById('temp_ist').innerHTML = response.data.temp_ist.round(1);
+          }
 
           document.getElementById('zweites').style.display = 'none';
           

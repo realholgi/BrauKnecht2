@@ -75,6 +75,7 @@ extern int hopfenZeit[];
 extern int timer;
 extern float isttemp;
 extern bool heizung;
+extern REGEL_MODE regelung;
 extern int x;
 
 #endif //GLOBAL_H

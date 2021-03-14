@@ -222,6 +222,7 @@ void handleDataJson() {
 
     json["modus"] = (int) modus;
     json["rufmodus"] = (int) rufmodus;
+    json["regelung"] = (int) regelung;
 
     json["maischtemp"] = maischtemp;
     json["rast_anzahl"] = rasten;
