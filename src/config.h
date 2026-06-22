@@ -1,5 +1,4 @@
-#ifndef CONFIG_H
-#define CONFIG_H
+#pragma once
 
 #define DEBUG
 
@@ -11,5 +10,3 @@ enum PinAssignments {
     heizungPin = D4,
     beeperPin = D8,
 };
-
-#endif //CONFIG_H

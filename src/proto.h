@@ -1,3 +1,4 @@
+#pragma once
 
 void funktion_rastanzahl();
 void funktion_maischtemperatur();

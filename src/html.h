@@ -1,3 +1,5 @@
+#pragma once
+
 const char PAGE_Kochen[] PROGMEM = R"=====(
 <!DOCTYPE html>
 <html lang="de">

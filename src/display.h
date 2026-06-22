@@ -1,5 +1,4 @@
-#ifndef DISPLAY_H
-#define DISPLAY_H
+#pragma once
 
 
 #define DISPLAY_SIZE_X 20
@@ -19,5 +18,3 @@ void printNumI_lcd(int num, int x, int y);
 void printNumF_lcd(float num, int x, int y);
 void print_lcd_minutes(int value, int x, int y);
 void print_lcd_deg(int x, int y);
-
-#endif //DISPLAY_H

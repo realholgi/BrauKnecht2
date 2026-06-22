@@ -1,5 +1,4 @@
-#ifndef GLOBAL_H
-#define GLOBAL_H
+#pragma once
 
 enum MODUS {
     HAUPTSCHIRM = 0,
@@ -77,5 +76,3 @@ extern float isttemp;
 extern bool heizung;
 extern REGEL_MODE regelung;
 extern int x;
-
-#endif //GLOBAL_H
