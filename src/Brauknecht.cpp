@@ -32,7 +32,7 @@ unsigned long altsekunden;
 REGEL_MODE regelung = REGL_AUS;
 bool sensorfehler = false;
 float hysterese;
-byte hysteresespeicher = HYSTERESE_DEFAULT;
+uint8_t hysteresespeicher = HYSTERESE_DEFAULT;
 long wartezeit = -60000;
 float sensorwert;
 unsigned long rufsignalzeit = 0;
@@ -40,7 +40,7 @@ int y = 1;                                            //Übergabewert von x für
 int n = 0;                                            //Counter Messungserhöhung zur Fehlervermeidung
 int pause = 0;
 unsigned long abbruchtaste;
-byte kschwelle = KOCHSCHWELLE_DEFAULT;
+uint8_t kschwelle = KOCHSCHWELLE_DEFAULT;
 bool einmaldruck = false;
 
 // -------------- external start
@@ -941,7 +941,7 @@ void funktion_hysterese() {
     }
 
     drehen = constrain(drehen, 0, 40); //max. 4,0 Sekunden Hysterese
-    hysteresespeicher = static_cast<byte>(drehen);
+    hysteresespeicher = static_cast<uint8_t>(drehen);
 
     printNumF_lcd(float(hysteresespeicher) / 10, RIGHT, 1);
 
@@ -961,7 +961,7 @@ void funktion_kochschwelle() {
     }
 
     drehen = constrain(drehen, 20, 99);
-    kschwelle = static_cast<byte>(drehen);
+    kschwelle = static_cast<uint8_t>(drehen);
 
     printNumI_lcd(kschwelle, RIGHT, 1);
 

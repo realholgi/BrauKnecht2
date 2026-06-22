@@ -42,18 +42,18 @@ enum BM_ALARM_MODE {
     BM_ALARM_MAX = BM_ALARM_SIGNAL
 };
 
-#define HYSTERESE_MEM 0
-#define HYSTERESE_DEFAULT 5
+constexpr int HYSTERESE_MEM = 0;
+constexpr int HYSTERESE_DEFAULT = 5;
 
-#define KOCHSCHWELLE_DEFAULT 98
-#define KOCHSCHWELLE_MEM 25
+constexpr int KOCHSCHWELLE_DEFAULT = 98;
+constexpr int KOCHSCHWELLE_MEM = 25;
 
-#define HENDI_MAX_RUNTIME 85
+constexpr int HENDI_MAX_RUNTIME = 85;
 
-#define ENCODER_STEPS_PER_NOTCH    4   // Change this depending on which encoder is used
+constexpr int ENCODER_STEPS_PER_NOTCH = 4;   // Change this depending on which encoder is used
 
-#define APSSID "BrauKnecht"
-#define APPSK "brauknecht"
+constexpr char APSSID[] = "BrauKnecht";
+constexpr char APPSK[] = "brauknecht";
 
 extern int sekunden;
 extern int minuten;

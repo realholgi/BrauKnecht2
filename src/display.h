@@ -1,13 +1,13 @@
 #pragma once
 
 
-#define DISPLAY_SIZE_X 20
-#define DISPLAY_SIZE_Y 4
-#define DISPLAY_ADDRESS 0x3f //# 0x27=proto / 0x3f=box
+constexpr int DISPLAY_SIZE_X = 20;
+constexpr int DISPLAY_SIZE_Y = 4;
+constexpr int DISPLAY_ADDRESS = 0x3f; //# 0x27=proto / 0x3f=box
 
-#define LEFT 0
-#define RIGHT 9999
-#define CENTER 9998
+constexpr int LEFT = 0;
+constexpr int RIGHT = 9999;
+constexpr int CENTER = 9998;
 
 void lcd_init();
 void lcd_clear();

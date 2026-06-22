@@ -52,7 +52,7 @@ void handleDataJson() {
     String title2 = "Details";
 
     char jetzt[10];
-    sprintf(jetzt, "%02i:%02i", (stunden * 60) + minuten, sekunden);
+    snprintf(jetzt, sizeof(jetzt), "%02i:%02i", (stunden * 60) + minuten, sekunden);
 
     switch (modus) {
         case HAUPTSCHIRM:

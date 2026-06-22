@@ -4,7 +4,7 @@
 
 #include "display.h"
 
-byte degC[8] = {B01000, B10100, B01000, B00111, B01000, B01000, B01000, B00111};
+uint8_t degC[8] = {B01000, B10100, B01000, B00111, B01000, B01000, B01000, B00111};
 
 LiquidCrystal_I2C lcd(DISPLAY_ADDRESS, DISPLAY_SIZE_X, DISPLAY_SIZE_Y);
 
@@ -53,7 +53,7 @@ void print_lcd(char *st, int x, int y) {
 
 void printNumI_lcd(int num, int x, int y) {
     char st[DISPLAY_SIZE_X + 10];
-    sprintf(st, "%i", num);
+    snprintf(st, sizeof(st), "%i", num);
     print_lcd(st, x, y);
 }
 
