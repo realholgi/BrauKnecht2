@@ -25,7 +25,6 @@ Ticker ticker;
 unsigned long serwartezeit = 0;
 #endif
 
-volatile int oldnumber = 0;
 bool ButtonPressed = false;
 volatile int drehen = 0;
 bool anfang = true;
