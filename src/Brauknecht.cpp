@@ -15,6 +15,7 @@
 #include "persistence.h"
 #include "settings.h"
 #include "mqtt.h"
+#include "recipe.h"
 
 Ticker ticker;
 
@@ -103,6 +104,11 @@ void setup() {
     persistenceSetup();
     readEepromData();
     loadSettings(settings);
+
+    Recipe rcp;
+    if (loadRecipe(rcp)) {
+        applyRecipe(rcp);
+    }
 
     watchdogSetup();
 

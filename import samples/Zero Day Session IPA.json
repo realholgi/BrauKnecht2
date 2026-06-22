@@ -1,0 +1,286 @@
+{
+    "Global": {
+        "db_Version": 2009
+    },
+    "Hauptgaerverlauf": [
+        {
+            "Alc": 0,
+            "Bemerkung": "",
+            "Restextrakt": 9.3,
+            "Temp": 18,
+            "Zeitstempel": "2026-04-19T17:10:09.000"
+        }
+    ],
+    "Hefegaben": [
+        {
+            "Menge": 1,
+            "Name": "WHC Lab - Sweet Release",
+            "ZugabeNach": 0,
+            "Zugegeben": 1
+        }
+    ],
+    "Hopfengaben": [
+        {
+            "Alpha": 8.3,
+            "Name": "Motueka",
+            "Pellets": 1,
+            "Prozent": 9.642323711203112,
+            "Vorderwuerze": 3,
+            "Zeit": 20,
+            "erg_Menge": 5.076245094830921
+        },
+        {
+            "Alpha": 8.6,
+            "Name": "Talus",
+            "Pellets": 1,
+            "Prozent": 10.208475050182452,
+            "Vorderwuerze": 4,
+            "Zeit": 0,
+            "erg_Menge": 5.3742980376175975
+        },
+        {
+            "Alpha": 8.3,
+            "Name": "Motueka",
+            "Pellets": 1,
+            "Prozent": 43.21836790599241,
+            "Vorderwuerze": 4,
+            "Zeit": 0,
+            "erg_Menge": 22.752505999616382
+        },
+        {
+            "Alpha": 10.7,
+            "Name": "Nelson Sauvin",
+            "Pellets": 1,
+            "Prozent": 36.930833332622015,
+            "Vorderwuerze": 4,
+            "Zeit": 0,
+            "erg_Menge": 19.442404877459712
+        }
+    ],
+    "Maischplan": [
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 100,
+            "AnteilWasser": 100,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 0,
+            "Name": "Einmaischen",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 0,
+            "TempRast": 70,
+            "TempWasser": 74.23646813465812,
+            "Typ": 0
+        },
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 0,
+            "AnteilWasser": 0,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 60,
+            "Name": "verzuckerung (70°-75°)",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 0,
+            "TempRast": 70,
+            "TempWasser": 0,
+            "Typ": 1
+        },
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 0,
+            "AnteilWasser": 0,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 0,
+            "Name": "Abmaischen",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 0,
+            "TempRast": 70,
+            "TempWasser": 0,
+            "Typ": 1
+        }
+    ],
+    "Malzschuettung": [
+        {
+            "Farbe": 25,
+            "Name": "Münchner Malz II",
+            "Potential": 0,
+            "Prozent": 45,
+            "erg_Menge": 1.9832810184799337,
+            "pH": 5.34
+        },
+        {
+            "Farbe": 4,
+            "Name": "Weizenmalz hell ",
+            "Potential": 0,
+            "Prozent": 25,
+            "erg_Menge": 1.1018227880444076,
+            "pH": 5.8
+        },
+        {
+            "Farbe": 4,
+            "Name": "Hafermalz",
+            "Potential": 0,
+            "Prozent": 20,
+            "erg_Menge": 0.8814582304355261,
+            "pH": 5.8
+        },
+        {
+            "Farbe": 5,
+            "Name": "CARAPILS® ",
+            "Potential": 0,
+            "Prozent": 10,
+            "erg_Menge": 0.44072911521776303,
+            "pH": 5.6
+        }
+    ],
+    "Nachgaerverlauf": [
+        {
+            "Bemerkung": "",
+            "CO2": 2.775895776873617,
+            "Druck": 0,
+            "Temp": 4,
+            "Zeitstempel": "2026-04-29T11:57:18.000"
+        }
+    ],
+    "Schnellgaerverlauf": [
+        {
+            "Alc": 0,
+            "Bemerkung": "",
+            "Restextrakt": 9.3,
+            "Temp": 18,
+            "Zeitstempel": "2026-04-19T17:10:09.000"
+        }
+    ],
+    "Sud": {
+        "Abfuelldatum": "2026-04-29T11:57:18.000",
+        "Anlage": "Hendi BIAB kleiner Sud",
+        "AusbeuteIgnorieren": 0,
+        "BemerkungAbfuellen": "",
+        "BemerkungBrauen": "",
+        "BemerkungGaerung": "",
+        "BemerkungMaischplan": "",
+        "BemerkungWasseraufbereitung": "",
+        "BemerkungZutatenGaerung": "",
+        "BemerkungZutatenKochen": "",
+        "BemerkungZutatenMaischen": "",
+        "Braudatum": "2026-04-19T17:10:09.000",
+        "CO2": 5,
+        "Erstellt": "2020-07-21T11:53:24.000",
+        "FaktorHauptguss": 6.700000000000001,
+        "Gespeichert": "2026-04-29T11:57:19.000",
+        "IBU": 15,
+        "JungbiermengeAbfuellen": 22,
+        "Kategorie": "Pale Ale",
+        "Kochdauer": 30,
+        "Kommentar": "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Wasser KA Mischharz auf 30ppm</p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">4,5g Epsom + 2,25g gips</p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>",
+        "KostenWasserStrom": 0,
+        "Menge": 25,
+        "MengeHefestarter": 0,
+        "MerklistenID": 1,
+        "Nachisomerisierungszeit": 10,
+        "Reifezeit": 2,
+        "ReifungStart": "2026-04-29T11:57:19.000",
+        "RestalkalitaetSoll": 1,
+        "SW": 9,
+        "SWAnstellen": 9.3,
+        "SWHefestarter": 0,
+        "SWJungbier": 3.7,
+        "SWKochbeginn": 8.50909090909091,
+        "SWKochende": 9.3,
+        "SWSchnellgaerprobe": 9.3,
+        "SchnellgaerprobeAktiv": 0,
+        "Speisemenge": 0,
+        "Spunden": 1,
+        "Status": 2,
+        "Sudhausausbeute": 55,
+        "Sudname": "Zero Day Session IPA",
+        "Sudnummer": 106,
+        "TemperaturJungbier": 4,
+        "TemperaturKarbonisierung": 18,
+        "Verdampfungsrate": 3,
+        "VerduennungAnstellen": 0,
+        "Vergaerungsgrad": 60,
+        "VerschneidungAbfuellen": 0,
+        "Wasserprofil": "Karlsruhe",
+        "WuerzemengeAnstellen": 22,
+        "WuerzemengeKochbeginn": 27.8,
+        "WuerzemengeKochende": 22,
+        "WuerzemengeVorHopfenseihen": 25.5,
+        "berechnungsArtHopfen": 0,
+        "erg_AbgefuellteBiermenge": 21,
+        "erg_Alkohol": 2.991251760046946,
+        "erg_EffektiveAusbeute": 48.14711395988692,
+        "erg_Farbe": 12.944999999999999,
+        "erg_Preis": 0.7057214363314784,
+        "erg_S_Gesamt": 4.40729115217763,
+        "erg_Sudhausausbeute": 55.80688208986894,
+        "erg_WHauptguss": 29.528850719590128,
+        "erg_WNachguss": 2.2021487865003966,
+        "erg_W_Gesamt": 31.730999506090527,
+        "highGravityFaktor": 0
+    },
+    "Wasseraufbereitung": [
+        {
+            "Einheit": 5,
+            "Faktor": -0.0443,
+            "Menge": 0.40306087527371165,
+            "Name": "Phosphorsäure (75%)",
+            "Restalkalitaet": -9.098439622431414
+        }
+    ],
+    "WeitereZutatenGaben": [
+        {
+            "Ausbeute": 0,
+            "Bemerkung": "",
+            "Einheit": 1,
+            "Entnahmeindex": 0,
+            "Farbe": 0,
+            "Menge": 2,
+            "Name": "Motueka",
+            "Typ": 100,
+            "Unvergaerbar": 0,
+            "Zeitpunkt": 0,
+            "ZugabeNach": 1,
+            "Zugabedauer": 10080,
+            "Zugabestatus": 1,
+            "erg_Menge": 52
+        },
+        {
+            "Ausbeute": 0,
+            "Bemerkung": "",
+            "Einheit": 1,
+            "Entnahmeindex": 0,
+            "Farbe": 0,
+            "Menge": 1.7,
+            "Name": "Talus",
+            "Typ": 100,
+            "Unvergaerbar": 0,
+            "Zeitpunkt": 0,
+            "ZugabeNach": 3,
+            "Zugabedauer": 10080,
+            "Zugabestatus": 1,
+            "erg_Menge": 44.199999999999996
+        },
+        {
+            "Ausbeute": 0,
+            "Bemerkung": "",
+            "Einheit": 1,
+            "Entnahmeindex": 0,
+            "Farbe": 0,
+            "Menge": 1.5,
+            "Name": "Nelson Sauvin",
+            "Typ": 100,
+            "Unvergaerbar": 0,
+            "Zeitpunkt": 0,
+            "ZugabeNach": 3,
+            "Zugabedauer": 10080,
+            "Zugabestatus": 1,
+            "erg_Menge": 39
+        }
+    ]
+}

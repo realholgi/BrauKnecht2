@@ -2,12 +2,14 @@
 #include <ESP8266WebServer.h>
 #include <ESP8266mDNS.h>
 #include <ArduinoJson.h>
+#include <LittleFS.h>
 
 #include "global.h"
 #include "config.h"
 #include "html.h"
 #include "web.h"
 #include "settings.h"
+#include "recipe.h"
 
 const char *ap_ssid = APSSID;
 const char *ap_password = APPSK;
@@ -21,6 +23,9 @@ void handle_http() {
 
 static void handleConfigGet();
 static void handleConfigPost();
+static void handleRecipeGet();
+static void handleRecipeDone();
+static void handleRecipeUpload();
 
 void setupWebserver() {
     HTTP.on("/", handleRoot);
@@ -31,6 +36,8 @@ void setupWebserver() {
     });
     HTTP.on("/config", HTTP_GET, handleConfigGet);
     HTTP.on("/config", HTTP_POST, handleConfigPost);
+    HTTP.on("/recipe", HTTP_GET, handleRecipeGet);
+    HTTP.on("/recipe", HTTP_POST, handleRecipeDone, handleRecipeUpload);
 
     HTTP.onNotFound(handleNotFound);
     HTTP.begin();
@@ -313,4 +320,70 @@ static void handleConfigPost() {
               F("<html><body>Gespeichert. Neustart&hellip;</body></html>"));
     delay(1000);
     ESP.restart();
+}
+
+static File uploadFile;
+
+static void handleRecipeGet() {
+    String h = F("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                 "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                 "<title>Rezept-Import</title></head><body><h2>Rezept-Import</h2>"
+                 "<p>Aktuell: ");
+    h += maischtemp;
+    h += F("&deg;C Einmaischen, ");
+    h += rasten;
+    h += F(" Rasten, ");
+    h += kochzeit;
+    h += F(" min Kochen</p>"
+           "<form method='POST' action='/recipe' enctype='multipart/form-data'>"
+           "Kleiner-Brauhelfer JSON:<br><input type='file' name='recipe'>"
+           "<br><br><input type='submit' value='Importieren'></form></body></html>");
+    HTTP.send(200, "text/html; charset=utf-8", h);
+}
+
+// Streams the multipart upload to a temp file on LittleFS.
+static void handleRecipeUpload() {
+    HTTPUpload &up = HTTP.upload();
+    if (up.status == UPLOAD_FILE_START) {
+        uploadFile = LittleFS.open("/upload.tmp", "w");
+    } else if (up.status == UPLOAD_FILE_WRITE) {
+        if (uploadFile) {
+            uploadFile.write(up.buf, up.currentSize);
+        }
+    } else if (up.status == UPLOAD_FILE_END) {
+        if (uploadFile) {
+            uploadFile.close();
+        }
+    }
+}
+
+// Runs after the upload completed: parse, apply, persist.
+static void handleRecipeDone() {
+    File f = LittleFS.open("/upload.tmp", "r");
+    Recipe r;
+    bool ok = f && parseKbhStream(f, r);
+    if (f) {
+        f.close();
+    }
+    LittleFS.remove("/upload.tmp");
+
+    if (!ok) {
+        HTTP.send(400, "text/plain; charset=utf-8",
+                  F("Import fehlgeschlagen (kein gueltiges Kleiner-Brauhelfer JSON)."));
+        return;
+    }
+
+    applyRecipe(r);
+    saveRecipe(r);
+
+    String msg = F("Importiert: ");
+    msg += r.name;
+    msg += F("\n");
+    msg += r.rasten;
+    msg += F(" Rasten, ");
+    msg += r.kochzeit;
+    msg += F(" min Kochen, ");
+    msg += r.hopfenanzahl;
+    msg += F(" Hopfengaben.");
+    HTTP.send(200, "text/plain; charset=utf-8", msg);
 }
