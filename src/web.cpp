@@ -220,9 +220,9 @@ void handleDataJson() {
 
     json["data"] = data;
 
-    json["modus"] = (int) modus;
-    json["rufmodus"] = (int) rufmodus;
-    json["regelung"] = (int) regelung;
+    json["modus"] = static_cast<int>(modus);
+    json["rufmodus"] = static_cast<int>(rufmodus);
+    json["regelung"] = static_cast<int>(regelung);
 
     json["maischtemp"] = maischtemp;
     json["rast_anzahl"] = rasten;

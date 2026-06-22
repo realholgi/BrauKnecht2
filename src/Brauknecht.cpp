@@ -148,7 +148,7 @@ void loop() {
     // Sensorfehler 0.00 => Datenleitung oder GND fehlt
 
     if (regelung == REGL_MAISCHEN) {
-        if ((int) isttemp == -127 || (int) isttemp == 0) {
+        if (static_cast<int>(isttemp) == -127 || static_cast<int>(isttemp) == 0) {
             if (!sensorfehler) {
                 rufmodus = modus;
                 print_lcdP(PSTR("Sensorfehler"), RIGHT, 2);
@@ -479,7 +479,7 @@ void funktion_hauptschirm() {
         lcd_clear();
         if (modus == MANUELL) {
             //Übergabe an Modus1
-            drehen = (int) isttemp + 10; // Vorgabewert 10°C über IstWert
+            drehen = static_cast<int>(isttemp) + 10; // Vorgabewert 10°C über IstWert
         }
     }
 }
