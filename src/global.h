@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdint.h>
+
 enum MODUS {
     HAUPTSCHIRM = 0,
     MANUELL,
@@ -76,3 +78,16 @@ extern float isttemp;
 extern bool heizung;
 extern REGEL_MODE regelung;
 extern int x;
+
+// shared mutable state (definitions in Brauknecht.cpp)
+extern bool ButtonPressed;
+extern volatile int drehen;
+extern bool anfang;
+extern unsigned long altsekunden;
+extern bool sensorfehler;
+extern float hysterese;
+extern uint8_t hysteresespeicher;
+extern long wartezeit;
+extern int n;
+extern uint8_t kschwelle;
+extern bool einmaldruck;

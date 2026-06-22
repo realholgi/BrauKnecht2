@@ -1,12 +1,17 @@
 #pragma once
 
+#include "global.h"
+
+void funktion_hauptschirm();
+void funktion_setupmenu();
+void funktion_temperatur();
+void funktion_temperatur_halten();
 void funktion_rastanzahl();
 void funktion_maischtemperatur();
 void funktion_rasteingabe();
 void funktion_zeiteingabe();
-void funktion_braumeister();
 void funktion_endtempeingabe();
-void funktion_startabfrage(MODUS naechsterModus, char *title);
+void funktion_startabfrage(MODUS naechsterModus, const char *title);
 void funktion_maischtemperaturautomatik();
 void funktion_tempautomatik();
 void funktion_zeitautomatik();
@@ -20,19 +25,4 @@ void funktion_anzahlhopfengaben();
 void funktion_hopfengaben();
 void funktion_kochenaufheizen();
 void funktion_hopfenzeitautomatik();
-void _next_koch_step();
 void funktion_abbruch();
-void funktion_temperatur();
-void funktion_temperatur_halten();
-void funktion_maischmenue();
-void funktion_setupmenu();
-void watchdogSetup(void);
-void beeperOnOff(bool value);
-void heizungOnOff(bool value);
-void funktion_hauptschirm();
-
-void encoderTicker();
-bool getButton();
-void stateMachine();
-void readEepromData();
-void writeEepromData();

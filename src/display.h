@@ -12,7 +12,7 @@ constexpr int CENTER = 9998;
 void lcd_init();
 void lcd_clear();
 
-void print_lcd(char *st, int x, int y);
+void print_lcd(const char *st, int x, int y);
 void print_lcdP(const char *st, int x, int y);
 void printNumI_lcd(int num, int x, int y);
 void printNumF_lcd(float num, int x, int y);
