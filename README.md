@@ -15,14 +15,21 @@ https://holgi.beer/tags/brau-ger%C3%A4tschaft/
 - **Hysteresis temperature control** with safety features: sensor-error detection,
   overshoot cutoff, relay anti-chatter lockout, and a watchdog.
 - **Local UI** — 20x4 LCD and rotary encoder (click to select, hold to abort).
-- **Web monitor** — live status page over WiFi, backed by a `/data.json` endpoint.
+- **Web monitor** — live, mobile-friendly status page over WiFi, backed by a
+  `/data.json` endpoint. No external dependencies, auto light/dark.
+- **Web config** (`/config`) — pick your home WiFi from a scanned list and set
+  MQTT credentials; settings persist in flash.
+- **Recipe import** (`/recipe`) — upload a Kleiner-Brauhelfer JSON or BeerXML
+  file; the mash steps and hop additions are applied and stored in flash.
+- **MQTT / Home Assistant** — publishes temperature, setpoint, heater and mode
+  with Home Assistant auto-discovery (read-only).
 - Hysteresis and boil threshold persist in EEPROM.
 
 ## Hardware
 
 - WeMos D1 Mini Pro (ESP8266)
 - DS18B20 temperature sensor (OneWire)
-- 20x4 character LCD over I2C (address `0x3f`)
+- 20x4 character LCD over I2C (address auto-detected, `0x27` or `0x3f`)
 - Rotary encoder with push button
 - Heating relay / SSR
 - Buzzer
@@ -44,15 +51,21 @@ Built with [PlatformIO](https://platformio.org/) (board `d1_mini_pro`).
 Libraries are pulled automatically from `platformio.ini`.
 
 ```sh
-pio run            # build
-pio run -t upload  # build and flash
+pio run                 # build
+pio run -t upload       # build and flash
+pio test -e native      # run host-side unit tests
 ```
 
 ## WiFi & web access
 
-The device runs as a WiFi access point:
+The device always runs its own access point, and additionally joins your home
+network once configured (`/config`):
 
-- SSID: `BrauKnecht`
-- Password: `brauknecht`
+- AP SSID: `BrauKnecht`
+- AP password: `brauknecht`
 
-Connect, then open **http://bk.local/** for the live status page.
+Connect to the AP (or reach it on your LAN once joined) and open
+**http://bk.local/** for the live status page. From there:
+
+- **`/config`** — select your WiFi from a scanned list and set MQTT host/port/user.
+- **`/recipe`** — upload a Kleiner-Brauhelfer JSON or BeerXML recipe.
