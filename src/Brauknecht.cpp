@@ -86,9 +86,9 @@ void setup() {
     encoder1.setDoubleClickEnabled(false);
 #ifndef DEBUG
     for (x = 1; x <= 3; x++) {
-      beeperOn(true);
+      beeperOnOff(true);
       delay(200);
-      beeperOn(false);
+      beeperOnOff(false);
       delay(200);
     }
 #endif
@@ -234,7 +234,7 @@ void watchdogSetup() {
     wdt_enable(WDTO_2S);
 }
 
-extern "C" void custom_crash_callback(struct rst_info *rst_info, uint32_t stack, uint32_t stack_end) {
+extern "C" void custom_crash_callback(struct rst_info *, uint32_t, uint32_t) {
     heizungOnOff(false);
     beeperOnOff(true); // beeeeeeeeeeep
     while (true);
