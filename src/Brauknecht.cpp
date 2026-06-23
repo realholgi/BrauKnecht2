@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 #include <TimeLib.h>
+#include <ESP8266mDNS.h>
+#include <ArduinoOTA.h>
 
 #include "global.h"
 #include "config.h"
@@ -110,6 +112,15 @@ void setup() {
     watchdogSetup();
 
     setupWIFI();
+
+    // OTA over WiFi (flash via `pio run -e d1_mini_ota -t upload`). Pause the
+    // timer1 encoder ISR while flashing so it can't run library code from flash
+    // mid-erase. mDNS is already up (setupWIFI), so just advertise the service.
+    ArduinoOTA.setHostname("bk");
+    ArduinoOTA.onStart([]() { encoderTimerPause(); });
+    ArduinoOTA.begin(false);
+    MDNS.enableArduino(8266);
+
     setupWebserver();
     mqttSetup();
 
@@ -121,6 +132,7 @@ void setup() {
 
 //loop=============================================================
 void loop() {
+    ArduinoOTA.handle();
     handle_http();
     mqttLoop();
 
