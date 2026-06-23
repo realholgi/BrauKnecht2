@@ -1,6 +1,53 @@
 #include <string.h>
+#include <stdlib.h>
 
 #include "recipe_parse.h"
+
+static int clampInt(int v, int lo, int hi) {
+    if (v < lo) return lo;
+    if (v > hi) return hi;
+    return v;
+}
+
+// --- shared mapping (used by both KBH and BeerXML) ---------------------------
+
+// Mash plan -> globals: first step = Einmaischen (maischtemp), last = Abmaischen
+// (endtemp), middle steps = rests.
+static void mapMash(Recipe &r, const int *temps, const int *times, int count) {
+    r.rasten = 0;
+    for (int i = 0; i < count; i++) {
+        if (i == 0) {
+            r.maischtemp = temps[i];
+        } else if (i == count - 1) {
+            r.endtemp = temps[i];
+        } else if (r.rasten < 7) {
+            r.rasten++;
+            r.rastTemp[r.rasten] = temps[i];
+            r.rastZeit[r.rasten] = times[i];
+        }
+    }
+    if (r.rasten < 1) {  // degenerate plan (<3 steps): one rest so the brew runs
+        r.rasten = 1;
+        r.rastTemp[1] = r.maischtemp;
+        r.rastZeit[1] = 0;
+    }
+}
+
+// Hop additions: input is "minutes before boil end"; BrauKnecht counts up from
+// boil start, so hopfenZeit = kochzeit - beforeEnd. r.kochzeit must be set first.
+static void mapHops(Recipe &r, const int *beforeEnd, int count) {
+    r.hopfenanzahl = 0;
+    for (int i = 0; i < count && r.hopfenanzahl < 6; i++) {
+        r.hopfenanzahl++;
+        r.hopfenZeit[r.hopfenanzahl] = clampInt(r.kochzeit - beforeEnd[i], 0, r.kochzeit);
+    }
+    if (r.hopfenanzahl < 1) {
+        r.hopfenanzahl = 1;
+        r.hopfenZeit[1] = 0;
+    }
+}
+
+// --- Kleiner Brauhelfer JSON -------------------------------------------------
 
 void buildKbhFilter(JsonDocument &filter) {
     filter["Sud"]["Sudname"] = true;
@@ -9,12 +56,6 @@ void buildKbhFilter(JsonDocument &filter) {
     filter["Maischplan"][0]["TempRast"] = true;
     filter["Maischplan"][0]["DauerRast"] = true;
     filter["Hopfengaben"][0]["Zeit"] = true;
-}
-
-static int clampInt(int v, int lo, int hi) {
-    if (v < lo) return lo;
-    if (v > hi) return hi;
-    return v;
 }
 
 bool parseKbhDoc(const JsonDocument &doc, Recipe &r) {
@@ -27,46 +68,127 @@ bool parseKbhDoc(const JsonDocument &doc, Recipe &r) {
     strlcpy(r.name, sud["Sudname"] | "", sizeof(r.name));
     r.kochzeit = sud["Kochdauer"] | 0;
 
-    // Mash plan: first = Einmaischen, last = Abmaischen, middle = rests.
-    JsonArrayConst mp = doc["Maischplan"].as<JsonArrayConst>();
-    int count = mp.size();
-    int i = 0;
-    for (JsonObjectConst step : mp) {
-        int temp = step["TempRast"] | 0;
-        int dauer = step["DauerRast"] | 0;
-        if (i == 0) {
-            r.maischtemp = temp;
-        } else if (i == count - 1) {
-            r.endtemp = temp;
-        } else if (r.rasten < 7) {
-            r.rasten++;
-            r.rastTemp[r.rasten] = temp;
-            r.rastZeit[r.rasten] = dauer;
-        }
-        i++;
+    int temps[16], times[16], tc = 0;
+    for (JsonObjectConst step : doc["Maischplan"].as<JsonArrayConst>()) {
+        if (tc >= 16) break;
+        temps[tc] = step["TempRast"] | 0;
+        times[tc] = step["DauerRast"] | 0;
+        tc++;
     }
-    // Degenerate plan (<3 steps): fall back to a single rest so the brew is runnable.
-    if (r.rasten < 1) {
-        r.rasten = 1;
-        r.rastTemp[1] = r.maischtemp;
-        r.rastZeit[1] = 0;
-    }
+    mapMash(r, temps, times, tc);
 
-    // Hops: KBH "Zeit" is minutes before boil end -> BrauKnecht counts up from start.
-    JsonArrayConst hops = doc["Hopfengaben"].as<JsonArrayConst>();
-    for (JsonObjectConst hop : hops) {
-        if (r.hopfenanzahl >= 6) break;
-        int zeit = hop["Zeit"] | 0;
-        r.hopfenanzahl++;
-        r.hopfenZeit[r.hopfenanzahl] = clampInt(r.kochzeit - zeit, 0, r.kochzeit);
+    int beforeEnd[16], hc = 0;
+    for (JsonObjectConst hop : doc["Hopfengaben"].as<JsonArrayConst>()) {
+        if (hc >= 16) break;
+        beforeEnd[hc++] = hop["Zeit"] | 0;
     }
-    if (r.hopfenanzahl < 1) {
-        r.hopfenanzahl = 1;
-        r.hopfenZeit[1] = 0;
-    }
-
+    mapHops(r, beforeEnd, hc);
     return true;
 }
+
+// --- BeerXML -----------------------------------------------------------------
+// Hand-rolled subset scanner (no DOM): we only need RECIPE/NAME, BOIL_TIME,
+// each MASH_STEP's STEP_TEMP/STEP_TIME, and HOP TIME where USE == Boil.
+
+static bool tagIs(const char *ns, size_t nlen, const char *name) {
+    return strlen(name) == nlen && strncmp(ns, name, nlen) == 0;
+}
+
+static void copyText(const char *t, char *buf, size_t n) {
+    size_t i = 0;
+    while (t[i] && t[i] != '<' && i < n - 1) {
+        buf[i] = t[i];
+        i++;
+    }
+    buf[i] = '\0';
+}
+
+bool parseBeerXmlString(const char *xml, Recipe &r) {
+    if (!strstr(xml, "<RECIPE")) {
+        return false;
+    }
+    memset(&r, 0, sizeof(r));
+
+    int boilTime = 0;
+    int temps[16], times[16], stepCount = 0;
+    int beforeEnd[16], hopCount = 0;
+    bool gotName = false, inMashStep = false, inHop = false;
+    int curTemp = 0, curTime = 0, curHopTime = 0;
+    char curUse[16] = {0};
+
+    const char *p = xml;
+    while ((p = strchr(p, '<')) != nullptr) {
+        p++;
+        bool closing = (*p == '/');
+        if (closing) {
+            p++;
+        }
+        const char *ns = p;
+        while (*p && *p != '>' && *p != ' ' && *p != '/') {
+            p++;
+        }
+        size_t nlen = p - ns;
+        const char *gt = strchr(p, '>');
+        if (!gt) break;
+        const char *text = gt + 1;
+
+        if (tagIs(ns, nlen, "MASH_STEP")) {
+            if (!closing) {
+                inMashStep = true;
+                curTemp = curTime = 0;
+            } else {
+                if (stepCount < 16) {
+                    temps[stepCount] = curTemp;
+                    times[stepCount] = curTime;
+                    stepCount++;
+                }
+                inMashStep = false;
+            }
+        } else if (tagIs(ns, nlen, "HOP")) {
+            if (!closing) {
+                inHop = true;
+                curHopTime = 0;
+                curUse[0] = '\0';
+            } else {
+                // Boil additions only — First Wort and Dry Hop are intentionally
+                // dropped (BrauKnecht only models timed boil additions).
+                if (strcmp(curUse, "Boil") == 0 && hopCount < 16) {
+                    beforeEnd[hopCount++] = curHopTime;
+                }
+                inHop = false;
+            }
+        } else if (!closing) {
+            if (tagIs(ns, nlen, "NAME")) {
+                if (!gotName) {
+                    copyText(text, r.name, sizeof(r.name));
+                    gotName = true;
+                }
+            } else if (tagIs(ns, nlen, "BOIL_TIME")) {
+                boilTime = atoi(text);
+            } else if (inMashStep && tagIs(ns, nlen, "STEP_TEMP")) {
+                curTemp = atoi(text);
+            } else if (inMashStep && tagIs(ns, nlen, "STEP_TIME")) {
+                curTime = atoi(text);
+            } else if (inHop && tagIs(ns, nlen, "USE")) {
+                copyText(text, curUse, sizeof(curUse));
+            } else if (inHop && tagIs(ns, nlen, "TIME")) {
+                curHopTime = atoi(text);
+            }
+        }
+        p = gt + 1;
+    }
+
+    if (!gotName && stepCount == 0) {
+        return false; // didn't look like a recipe
+    }
+
+    r.kochzeit = boilTime;
+    mapMash(r, temps, times, stepCount);
+    mapHops(r, beforeEnd, hopCount);
+    return true;
+}
+
+// --- our own persistence format ----------------------------------------------
 
 size_t recipeToJson(const Recipe &r, char *buf, size_t n) {
     DynamicJsonDocument doc(1024);

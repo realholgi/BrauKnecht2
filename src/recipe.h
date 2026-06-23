@@ -17,6 +17,7 @@ struct Recipe {
 class Stream;
 
 void applyRecipe(const Recipe &r);          // write into the brewing globals
-bool parseKbhStream(Stream &in, Recipe &r); // Kleiner Brauhelfer JSON from a file/stream
+bool parseKbhStream(Stream &in, Recipe &r);     // Kleiner Brauhelfer JSON from a file/stream
+bool parseBeerXmlStream(Stream &in, Recipe &r); // BeerXML from a file/stream
 bool saveRecipe(const Recipe &r);           // -> /recipe.json
 bool loadRecipe(Recipe &r);                 // <- /recipe.json

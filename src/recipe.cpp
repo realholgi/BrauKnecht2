@@ -32,6 +32,21 @@ bool parseKbhStream(Stream &in, Recipe &r) {
     return parseKbhDoc(doc, r);
 }
 
+bool parseBeerXmlStream(Stream &in, Recipe &r) {
+    // ponytail: buffer the file (a few KB) then scan in memory — far smaller
+    // than a DOM, and lets the scanner stay a pure, testable string function.
+    String xml;
+    xml.reserve(2048);
+    char buf[257];
+    while (in.available() && xml.length() < 16384) {
+        int n = in.readBytes(buf, sizeof(buf) - 1);
+        if (n <= 0) break;
+        buf[n] = '\0';
+        xml += buf;
+    }
+    return parseBeerXmlString(xml.c_str(), r);
+}
+
 bool saveRecipe(const Recipe &r) {
     char buf[512];
     size_t n = recipeToJson(r, buf, sizeof(buf));

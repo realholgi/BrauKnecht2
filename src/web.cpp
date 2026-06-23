@@ -336,7 +336,7 @@ static void handleRecipeGet() {
     h += kochzeit;
     h += F(" min Kochen</p>"
            "<form method='POST' action='/recipe' enctype='multipart/form-data'>"
-           "Kleiner-Brauhelfer JSON:<br><input type='file' name='recipe'>"
+           "Kleiner-Brauhelfer JSON oder BeerXML:<br><input type='file' name='recipe'>"
            "<br><br><input type='submit' value='Importieren'></form></body></html>");
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
@@ -361,15 +361,23 @@ static void handleRecipeUpload() {
 static void handleRecipeDone() {
     File f = LittleFS.open("/upload.tmp", "r");
     Recipe r;
-    bool ok = f && parseKbhStream(f, r);
+    bool ok = false;
     if (f) {
+        // sniff the first non-space byte: '<' = BeerXML, otherwise KBH JSON
+        int c = ' ';
+        while (f.available()) {
+            c = f.peek();
+            if (c != ' ' && c != '\t' && c != '\r' && c != '\n') break;
+            f.read();
+        }
+        ok = (c == '<') ? parseBeerXmlStream(f, r) : parseKbhStream(f, r);
         f.close();
     }
     LittleFS.remove("/upload.tmp");
 
     if (!ok) {
         HTTP.send(400, "text/plain; charset=utf-8",
-                  F("Import fehlgeschlagen (kein gueltiges Kleiner-Brauhelfer JSON)."));
+                  F("Import fehlgeschlagen (kein gueltiges Kleiner-Brauhelfer JSON oder BeerXML)."));
         return;
     }
 
