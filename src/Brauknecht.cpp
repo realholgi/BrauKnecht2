@@ -13,6 +13,7 @@
 #include "input.h"
 #include "statemachine.h"
 #include "persistence.h"
+#include "settings.h"
 
 Ticker ticker;
 
@@ -98,7 +99,9 @@ void setup() {
 
     temperatureSetup();
 
+    persistenceSetup();
     readEepromData();
+    loadSettings(settings);
 
     watchdogSetup();
 

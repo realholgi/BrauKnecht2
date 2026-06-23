@@ -1,7 +1,43 @@
 #include <EEPROM.h>
+#include <LittleFS.h>
 
 #include "persistence.h"
+#include "settings.h"
 #include "global.h"
+
+Settings settings;
+
+void persistenceSetup() {
+    if (!LittleFS.begin()) {
+        LittleFS.format();
+        LittleFS.begin();
+    }
+}
+
+bool loadSettings(Settings &s) {
+    settingsDefaults(s);
+    File f = LittleFS.open("/settings.json", "r");
+    if (!f) {
+        return false;
+    }
+    char buf[512];
+    size_t len = f.readBytes(buf, sizeof(buf) - 1);
+    buf[len] = '\0';
+    f.close();
+    return settingsFromJson(buf, s);
+}
+
+bool saveSettings(const Settings &s) {
+    char buf[512];
+    size_t n = settingsToJson(s, buf, sizeof(buf));
+    File f = LittleFS.open("/settings.json", "w");
+    if (!f) {
+        return false;
+    }
+    f.write(reinterpret_cast<const uint8_t *>(buf), n);
+    f.close();
+    return true;
+}
 
 void readEepromData() {
     EEPROM.begin(512);

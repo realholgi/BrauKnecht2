@@ -7,6 +7,7 @@
 #include "config.h"
 #include "html.h"
 #include "web.h"
+#include "settings.h"
 
 const char *ap_ssid = APSSID;
 const char *ap_password = APPSK;
@@ -18,6 +19,9 @@ void handle_http() {
     MDNS.update();
 }
 
+static void handleConfigGet();
+static void handleConfigPost();
+
 void setupWebserver() {
     HTTP.on("/", handleRoot);
     HTTP.on("/data.json", HTTP_GET, [&]() {
@@ -25,6 +29,8 @@ void setupWebserver() {
         HTTP.sendHeader("Access-Control-Allow-Origin", "*");
         return handleDataJson();
     });
+    HTTP.on("/config", HTTP_GET, handleConfigGet);
+    HTTP.on("/config", HTTP_POST, handleConfigPost);
 
     HTTP.onNotFound(handleNotFound);
     HTTP.begin();
@@ -248,17 +254,63 @@ void handleRoot() {
 }
 
 bool setupWIFI() {
-    Serial.println(F("Enabling WIFI in AP mode."));
+    WiFi.mode(WIFI_AP_STA);
 
-    WiFi.mode(WIFI_AP);
+    WiFi.softAP(ap_ssid);                       // always on, for first-time setup
 
-    MDNS.begin("bk"); // no pass => no portal?
+    if (strlen(settings.sta_ssid)) {            // join home network when configured
+        WiFi.begin(settings.sta_ssid, settings.sta_pass);
+    }
+
+    MDNS.begin("bk");
     delay(10);
 
-    WiFi.softAP(ap_ssid);
-
-    Serial.print(F("IP address: "));
+#ifdef DEBUG
+    Serial.print(F("AP IP: "));
     Serial.println(WiFi.softAPIP());
+    Serial.print(F("STA SSID: "));
+    Serial.println(settings.sta_ssid);
+#endif
 
     return false;
+}
+
+static void handleConfigGet() {
+    String h = F("<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                 "<meta name='viewport' content='width=device-width,initial-scale=1'>"
+                 "<title>BrauKnecht Config</title></head><body><h2>Einstellungen</h2>"
+                 "<form method='POST' action='/config'>"
+                 "WLAN SSID:<br><input name='sta_ssid' value='");
+    h += settings.sta_ssid;
+    h += F("'><br>WLAN Passwort:<br><input name='sta_pass' type='password'>"
+           "<br>MQTT Host:<br><input name='mqtt_host' value='");
+    h += settings.mqtt_host;
+    h += F("'><br>MQTT Port:<br><input name='mqtt_port' value='");
+    h += settings.mqtt_port;
+    h += F("'><br>MQTT User:<br><input name='mqtt_user' value='");
+    h += settings.mqtt_user;
+    h += F("'><br>MQTT Passwort:<br><input name='mqtt_pass' type='password'><br><br>"
+           "<input type='submit' value='Speichern &amp; Neustart'></form></body></html>");
+    HTTP.send(200, "text/html; charset=utf-8", h);
+}
+
+static void handleConfigPost() {
+    strlcpy(settings.sta_ssid, HTTP.arg("sta_ssid").c_str(), sizeof(settings.sta_ssid));
+    strlcpy(settings.mqtt_host, HTTP.arg("mqtt_host").c_str(), sizeof(settings.mqtt_host));
+    strlcpy(settings.mqtt_user, HTTP.arg("mqtt_user").c_str(), sizeof(settings.mqtt_user));
+    settings.mqtt_port = HTTP.arg("mqtt_port").toInt();
+    // keep existing passwords if the field was left blank
+    if (HTTP.arg("sta_pass").length()) {
+        strlcpy(settings.sta_pass, HTTP.arg("sta_pass").c_str(), sizeof(settings.sta_pass));
+    }
+    if (HTTP.arg("mqtt_pass").length()) {
+        strlcpy(settings.mqtt_pass, HTTP.arg("mqtt_pass").c_str(), sizeof(settings.mqtt_pass));
+    }
+
+    saveSettings(settings);
+
+    HTTP.send(200, "text/html; charset=utf-8",
+              F("<html><body>Gespeichert. Neustart&hellip;</body></html>"));
+    delay(1000);
+    ESP.restart();
 }
