@@ -10,6 +10,7 @@
 #include "web.h"
 #include "settings.h"
 #include "recipe.h"
+#include "input.h"
 
 const char *ap_ssid = APSSID;
 const char *ap_password = APPSK;
@@ -404,6 +405,7 @@ static void handleRecipeGet() {
 
 // Streams the multipart upload to a temp file on LittleFS.
 static void handleRecipeUpload() {
+    EncoderTimerGuard guard;  // pause timer1 ISR during the flash writes
     HTTPUpload &up = HTTP.upload();
     if (up.status == UPLOAD_FILE_START) {
         uploadFile = LittleFS.open("/upload.tmp", "w");
@@ -434,7 +436,10 @@ static void handleRecipeDone() {
         ok = (c == '<') ? parseBeerXmlStream(f, r) : parseKbhStream(f, r);
         f.close();
     }
-    LittleFS.remove("/upload.tmp");
+    {
+        EncoderTimerGuard guard;  // pause timer1 ISR during the flash erase
+        LittleFS.remove("/upload.tmp");
+    }
 
     if (!ok) {
         HTTP.send(400, "text/html; charset=utf-8",

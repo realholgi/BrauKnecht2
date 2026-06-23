@@ -5,6 +5,7 @@
 #include "recipe.h"
 #include "recipe_parse.h"
 #include "global.h"
+#include "input.h"
 
 void applyRecipe(const Recipe &r) {
     maischtemp = r.maischtemp;
@@ -48,6 +49,7 @@ bool parseBeerXmlStream(Stream &in, Recipe &r) {
 }
 
 bool saveRecipe(const Recipe &r) {
+    EncoderTimerGuard guard;  // pause timer1 ISR during the flash write
     char buf[512];
     size_t n = recipeToJson(r, buf, sizeof(buf));
     File f = LittleFS.open("/recipe.json", "w");

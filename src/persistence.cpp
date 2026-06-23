@@ -4,6 +4,7 @@
 #include "persistence.h"
 #include "settings.h"
 #include "global.h"
+#include "input.h"
 
 Settings settings;
 
@@ -28,6 +29,7 @@ bool loadSettings(Settings &s) {
 }
 
 bool saveSettings(const Settings &s) {
+    EncoderTimerGuard guard;  // pause timer1 ISR during the flash write
     char buf[512];
     size_t n = settingsToJson(s, buf, sizeof(buf));
     File f = LittleFS.open("/settings.json", "w");
@@ -51,6 +53,7 @@ void readEepromData() {
 }
 
 void writeEepromData() {
+    EncoderTimerGuard guard;  // pause timer1 ISR during the EEPROM (flash) commit
     EEPROM.begin(512);
 
     EEPROM.write(HYSTERESE_MEM, hysteresespeicher);

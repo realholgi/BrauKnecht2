@@ -2,7 +2,6 @@
 
 #include <Arduino.h>
 #include <TimeLib.h>
-#include <Ticker.h>
 
 #include "global.h"
 #include "config.h"
@@ -16,8 +15,6 @@
 #include "settings.h"
 #include "mqtt.h"
 #include "recipe.h"
-
-Ticker ticker;
 
 void watchdogSetup();
 
@@ -116,7 +113,10 @@ void setup() {
     setupWebserver();
     mqttSetup();
 
-    ticker.attach_ms(1, encoderTicker);
+    // Service the encoder from hardware timer1 (a real interrupt). The previous
+    // Ticker/os_timer runs in the SDK task context and gets starved by WiFi
+    // traffic, which made the encoder stutter and skip once STA + MQTT were on.
+    encoderTimerSetup();
 }
 
 //loop=============================================================
