@@ -40,9 +40,9 @@ bool parseBeerXmlStream(Stream &in, Recipe &r) {
     xml.reserve(2048);
     char buf[257];
     while (in.available() && xml.length() < 16384) {
-        int n = in.readBytes(buf, sizeof(buf) - 1);
-        if (n <= 0) break;
-        buf[n] = '\0';
+        int got = in.readBytes(buf, sizeof(buf) - 1);
+        if (got <= 0) break;
+        buf[got] = '\0';
         xml += buf;
     }
     return parseBeerXmlString(xml.c_str(), r);
@@ -51,12 +51,12 @@ bool parseBeerXmlStream(Stream &in, Recipe &r) {
 bool saveRecipe(const Recipe &r) {
     EncoderTimerGuard guard;  // pause timer1 ISR during the flash write
     char buf[512];
-    size_t n = recipeToJson(r, buf, sizeof(buf));
+    size_t len = recipeToJson(r, buf, sizeof(buf));
     File f = LittleFS.open("/recipe.json", "w");
     if (!f) {
         return false;
     }
-    f.write(reinterpret_cast<const uint8_t *>(buf), n);
+    f.write(reinterpret_cast<const uint8_t *>(buf), len);
     f.close();
     return true;
 }

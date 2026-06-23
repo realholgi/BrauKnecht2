@@ -31,12 +31,12 @@ bool loadSettings(Settings &s) {
 bool saveSettings(const Settings &s) {
     EncoderTimerGuard guard;  // pause timer1 ISR during the flash write
     char buf[512];
-    size_t n = settingsToJson(s, buf, sizeof(buf));
+    size_t len = settingsToJson(s, buf, sizeof(buf));
     File f = LittleFS.open("/settings.json", "w");
     if (!f) {
         return false;
     }
-    f.write(reinterpret_cast<const uint8_t *>(buf), n);
+    f.write(reinterpret_cast<const uint8_t *>(buf), len);
     f.close();
     return true;
 }

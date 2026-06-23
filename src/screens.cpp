@@ -482,9 +482,7 @@ void funktion_braumeisterrufalarm() {
 }
 
 void funktion_braumeisterruf() {
-    if (anfang) {
-        anfang = false;
-    }
+    anfang = false;
 
     if (millis() >= (altsekunden + 1000)) {
         print_lcdP(PSTR("        "), LEFT, 3);
@@ -682,7 +680,7 @@ void funktion_hopfenzeitautomatik() {
         printNumI_lcd(minuten, 10, 1);
     }
 
-    if ((minuten == hopfenZeit[x]) && (x <= hopfenanzahl)) {  // Hopfengabe
+    if ((x <= hopfenanzahl) && (minuten == hopfenZeit[x])) {  // Hopfengabe
         //Alarm -----
         if (millis() >= (altsekunden + 1000)) { //Blinken der Anzeige und RUF
             print_lcdP(PSTR("   "), LEFT, 3);
@@ -707,7 +705,7 @@ void funktion_hopfenzeitautomatik() {
         }
     }
 
-    if ((minuten > hopfenZeit[x]) && (x <= hopfenanzahl)) {  // Alarmende nach 1 Minute
+    if ((x <= hopfenanzahl) && (minuten > hopfenZeit[x])) {  // Alarmende nach 1 Minute
         _next_koch_step();
     }
 

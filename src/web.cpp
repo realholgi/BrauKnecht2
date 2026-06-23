@@ -310,12 +310,12 @@ static void handleConfigGet() {
     // watchdog while the loop is stalled in this handler. We cache the last good
     // result so the list never blanks while a (re)scan is running.
     static String wifiCache;  // scanned <option>s, kept across reloads
-    int n = WiFi.scanComplete();
-    if (n == -2) {
+    int scanCount = WiFi.scanComplete();
+    if (scanCount == -2) {
         WiFi.scanNetworks(true);  // first scan; list fills on the next reload
-    } else if (n >= 0) {
+    } else if (scanCount >= 0) {
         String c;
-        for (int i = 0; i < n; i++) {
+        for (int i = 0; i < scanCount; i++) {
             String s = WiFi.SSID(i);
             if (s.length() == 0 || s.indexOf('\'') >= 0) continue;  // skip empty/quote SSIDs
             if (s == APSSID || s == settings.sta_ssid) continue;   // own AP / already selected
@@ -330,7 +330,7 @@ static void handleConfigGet() {
         wifiCache = c;
         WiFi.scanNetworks(true);  // refresh for the next reload
     }
-    // n == -1: scan still running -> keep showing the cached list
+    // scanCount == -1: scan still running -> keep showing the cached list
 
     // current SSID first (stays selected even if not in range right now)
     String opts;
