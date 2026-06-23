@@ -40,6 +40,8 @@ void lcd_init() {
 
 void print_lcdP(const char *st, int x, int y) {
     lcd.setCursor(alignX(x, strlen(st)), clampY(y));
+    delayMicroseconds(60);  // let Set-DDRAM-Addr settle before data, else the
+                            // first character corrupts (showed as "0") on slow clones
 
     char buf[DISPLAY_SIZE_X + 1];
     strcpy_P(buf, st);
@@ -48,6 +50,8 @@ void print_lcdP(const char *st, int x, int y) {
 
 void print_lcd(const char *st, int x, int y) {
     lcd.setCursor(alignX(x, strlen(st)), clampY(y));
+    delayMicroseconds(60);  // let Set-DDRAM-Addr settle before data, else the
+                            // first character corrupts (showed as "0") on slow clones
     lcd.print(st);
 }
 
@@ -71,6 +75,7 @@ void print_lcd_minutes(int value, int x, int y) {
 
 void print_lcd_deg(int x, int y) {
     lcd.setCursor(constrain(x, 0, DISPLAY_SIZE_X - 1), clampY(y));
+    delayMicroseconds(60);
     lcd.write(8);
 }
 
