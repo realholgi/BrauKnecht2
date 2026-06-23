@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 
 #include "display.h"
@@ -6,13 +7,30 @@
 
 uint8_t degC[8] = {B01000, B10100, B01000, B00111, B01000, B01000, B01000, B00111};
 
-LiquidCrystal_I2C lcd(DISPLAY_ADDRESS, DISPLAY_SIZE_X, DISPLAY_SIZE_Y);
+// 0x27 here is just a placeholder; lcd_init() reassigns lcd with the detected
+// address before any use.
+LiquidCrystal_I2C lcd(0x27, DISPLAY_SIZE_X, DISPLAY_SIZE_Y);
 
 static int clampY(int y) {
     return constrain(y, 0, DISPLAY_SIZE_Y - 1);
 }
 
+// These PCF8574 backpacks ship at one of two addresses; probe both and use
+// whichever answers, falling back to the first if neither does.
+static uint8_t detectDisplayAddress() {
+    Wire.begin();
+    const uint8_t candidates[] = {0x27, 0x3f};
+    for (uint8_t a : candidates) {
+        Wire.beginTransmission(a);
+        if (Wire.endTransmission() == 0) {
+            return a;
+        }
+    }
+    return candidates[0];
+}
+
 void lcd_init() {
+    lcd = LiquidCrystal_I2C(detectDisplayAddress(), DISPLAY_SIZE_X, DISPLAY_SIZE_Y);
     lcd.init();
     lcd.createChar(8, degC);
     lcd.backlight();

@@ -3,7 +3,6 @@
 
 constexpr int DISPLAY_SIZE_X = 20;
 constexpr int DISPLAY_SIZE_Y = 4;
-constexpr int DISPLAY_ADDRESS = 0x3f; //# 0x27=proto / 0x3f=box
 
 constexpr int LEFT = 0;
 constexpr int RIGHT = 9999;
