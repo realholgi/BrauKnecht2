@@ -286,20 +286,22 @@ bool setupWIFI() {
     return false;
 }
 
-// Shared page shell — links the local /style.css so all pages match.
+// Shared page shell — links the local /style.css so all pages match the
+// status page's look (hero header + glass cards).
 static String pageHead(const char *title) {
     String h = F("<!DOCTYPE html><html lang='de'><head><meta charset='utf-8'>"
                  "<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
                  "<link rel='icon' href='data:,'><link rel='stylesheet' href='/style.css'><title>");
     h += title;
-    h += F("</title></head><body><div class='wrap'><h1>");
+    h += F("</title></head><body><main class='page'>"
+           "<section class='hero fade'><p class='eyebrow'>BrauKnecht</p><h1>");
     h += title;
-    h += F("</h1>");
+    h += F("</h1></section>");
     return h;
 }
 
 static String pageFoot() {
-    return F("<p style='text-align:center'><a href='/'>&larr; Status</a></p></div></body></html>");
+    return F("<p class='links'><a href='/'>&larr; Status</a></p></main></body></html>");
 }
 
 static void handleConfigGet() {
