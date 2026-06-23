@@ -14,6 +14,7 @@
 #include "statemachine.h"
 #include "persistence.h"
 #include "settings.h"
+#include "mqtt.h"
 
 Ticker ticker;
 
@@ -107,6 +108,7 @@ void setup() {
 
     setupWIFI();
     setupWebserver();
+    mqttSetup();
 
     ticker.attach_ms(1, encoderTicker);
 }
@@ -114,6 +116,7 @@ void setup() {
 //loop=============================================================
 void loop() {
     handle_http();
+    mqttLoop();
 
     sekunden = second();
     minutenwert = minute();
