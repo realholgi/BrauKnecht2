@@ -29,6 +29,10 @@ static void handleRecipeUpload();
 
 void setupWebserver() {
     HTTP.on("/", handleRoot);
+    HTTP.on("/style.css", HTTP_GET, []() {
+        HTTP.sendHeader("Cache-Control", "max-age=86400");
+        HTTP.send_P(200, "text/css", STYLE_CSS);
+    });
     HTTP.on("/data.json", HTTP_GET, [&]() {
         HTTP.sendHeader("Connection", "close");
         HTTP.sendHeader("Access-Control-Allow-Origin", "*");
@@ -282,22 +286,76 @@ bool setupWIFI() {
     return false;
 }
 
+// Shared page shell — links the local /style.css so all pages match.
+static String pageHead(const char *title) {
+    String h = F("<!DOCTYPE html><html lang='de'><head><meta charset='utf-8'>"
+                 "<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
+                 "<link rel='icon' href='data:,'><link rel='stylesheet' href='/style.css'><title>");
+    h += title;
+    h += F("</title></head><body><div class='wrap'><h1>");
+    h += title;
+    h += F("</h1>");
+    return h;
+}
+
+static String pageFoot() {
+    return F("<p style='text-align:center'><a href='/'>&larr; Status</a></p></div></body></html>");
+}
+
 static void handleConfigGet() {
-    String h = F("<!DOCTYPE html><html><head><meta charset='utf-8'>"
-                 "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                 "<title>BrauKnecht Config</title></head><body><h2>Einstellungen</h2>"
-                 "<form method='POST' action='/config'>"
-                 "WLAN SSID:<br><input name='sta_ssid' value='");
-    h += settings.sta_ssid;
-    h += F("'><br>WLAN Passwort:<br><input name='sta_pass' type='password'>"
-           "<br>MQTT Host:<br><input name='mqtt_host' value='");
+    // Async scan only — a blocking WiFi.scanNetworks() can outlast the 2s
+    // watchdog while the loop is stalled in this handler. We cache the last good
+    // result so the list never blanks while a (re)scan is running.
+    static String wifiCache;  // scanned <option>s, kept across reloads
+    int n = WiFi.scanComplete();
+    if (n == -2) {
+        WiFi.scanNetworks(true);  // first scan; list fills on the next reload
+    } else if (n >= 0) {
+        String c;
+        for (int i = 0; i < n; i++) {
+            String s = WiFi.SSID(i);
+            if (s.length() == 0 || s.indexOf('\'') >= 0) continue;  // skip empty/quote SSIDs
+            if (s == APSSID || s == settings.sta_ssid) continue;   // own AP / already selected
+            String tag = "value='" + s + "'";
+            if (c.indexOf(tag) >= 0) continue;                     // same SSID on several APs/channels
+            c += F("<option ");
+            c += tag;
+            c += F(">");
+            c += s;
+            c += F("</option>");
+        }
+        wifiCache = c;
+        WiFi.scanNetworks(true);  // refresh for the next reload
+    }
+    // n == -1: scan still running -> keep showing the cached list
+
+    // current SSID first (stays selected even if not in range right now)
+    String opts;
+    if (strlen(settings.sta_ssid)) {
+        opts += F("<option selected value='");
+        opts += settings.sta_ssid;
+        opts += F("'>");
+        opts += settings.sta_ssid;
+        opts += F("</option>");
+    } else {
+        opts += F("<option value=''>&ndash; ausw&auml;hlen &ndash;</option>");
+    }
+    opts += wifiCache;
+
+    String h = pageHead("Einstellungen");
+    h += F("<form class='card' method='POST' action='/config'>"
+           "<label>WLAN SSID</label><select name='sta_ssid'>");
+    h += opts;
+    h += F("</select><label>WLAN Passwort</label><input name='sta_pass' type='password' placeholder='unver&auml;ndert'>"
+           "<label>MQTT Host</label><input name='mqtt_host' value='");
     h += settings.mqtt_host;
-    h += F("'><br>MQTT Port:<br><input name='mqtt_port' value='");
+    h += F("'><label>MQTT Port</label><input name='mqtt_port' inputmode='numeric' value='");
     h += settings.mqtt_port;
-    h += F("'><br>MQTT User:<br><input name='mqtt_user' value='");
+    h += F("'><label>MQTT User</label><input name='mqtt_user' value='");
     h += settings.mqtt_user;
-    h += F("'><br>MQTT Passwort:<br><input name='mqtt_pass' type='password'><br><br>"
-           "<input type='submit' value='Speichern &amp; Neustart'></form></body></html>");
+    h += F("'><label>MQTT Passwort</label><input name='mqtt_pass' type='password' placeholder='unver&auml;ndert'>"
+           "<button class='btn' type='submit'>Speichern &amp; Neustart</button></form>");
+    h += pageFoot();
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
 
@@ -306,6 +364,7 @@ static void handleConfigPost() {
     strlcpy(settings.mqtt_host, HTTP.arg("mqtt_host").c_str(), sizeof(settings.mqtt_host));
     strlcpy(settings.mqtt_user, HTTP.arg("mqtt_user").c_str(), sizeof(settings.mqtt_user));
     settings.mqtt_port = HTTP.arg("mqtt_port").toInt();
+    if (!settings.mqtt_port) settings.mqtt_port = 1883;  // blank/0 -> default
     // keep existing passwords if the field was left blank
     if (HTTP.arg("sta_pass").length()) {
         strlcpy(settings.sta_pass, HTTP.arg("sta_pass").c_str(), sizeof(settings.sta_pass));
@@ -317,7 +376,7 @@ static void handleConfigPost() {
     saveSettings(settings);
 
     HTTP.send(200, "text/html; charset=utf-8",
-              F("<html><body>Gespeichert. Neustart&hellip;</body></html>"));
+              pageHead("Neustart") + F("<div class='card'>Gespeichert. Neustart&hellip;</div>") + pageFoot());
     delay(1000);
     ESP.restart();
 }
@@ -325,19 +384,19 @@ static void handleConfigPost() {
 static File uploadFile;
 
 static void handleRecipeGet() {
-    String h = F("<!DOCTYPE html><html><head><meta charset='utf-8'>"
-                 "<meta name='viewport' content='width=device-width,initial-scale=1'>"
-                 "<title>Rezept-Import</title></head><body><h2>Rezept-Import</h2>"
-                 "<p>Aktuell: ");
+    String h = pageHead("Rezept-Import");
+    h += F("<div class='card'><h2>Aktuelles Rezept</h2>Einmaischen ");
     h += maischtemp;
-    h += F("&deg;C Einmaischen, ");
+    h += F("&deg;C &middot; ");
     h += rasten;
-    h += F(" Rasten, ");
+    h += F(" Rasten &middot; ");
     h += kochzeit;
-    h += F(" min Kochen</p>"
-           "<form method='POST' action='/recipe' enctype='multipart/form-data'>"
-           "Kleiner-Brauhelfer JSON oder BeerXML:<br><input type='file' name='recipe'>"
-           "<br><br><input type='submit' value='Importieren'></form></body></html>");
+    h += F(" min Kochen</div>"
+           "<form class='card' method='POST' action='/recipe' enctype='multipart/form-data'>"
+           "<label>Kleiner-Brauhelfer JSON oder BeerXML</label>"
+           "<input type='file' name='recipe' accept='.json,.xml'>"
+           "<button class='btn' type='submit'>Importieren</button></form>");
+    h += pageFoot();
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
 
@@ -376,22 +435,26 @@ static void handleRecipeDone() {
     LittleFS.remove("/upload.tmp");
 
     if (!ok) {
-        HTTP.send(400, "text/plain; charset=utf-8",
-                  F("Import fehlgeschlagen (kein gueltiges Kleiner-Brauhelfer JSON oder BeerXML)."));
+        HTTP.send(400, "text/html; charset=utf-8",
+                  pageHead("Import fehlgeschlagen") +
+                      F("<div class='card'>Kein g&uuml;ltiges Kleiner-Brauhelfer JSON oder BeerXML.</div>") +
+                      pageFoot());
         return;
     }
 
     applyRecipe(r);
     saveRecipe(r);
 
-    String msg = F("Importiert: ");
-    msg += r.name;
-    msg += F("\n");
-    msg += r.rasten;
-    msg += F(" Rasten, ");
-    msg += r.kochzeit;
-    msg += F(" min Kochen, ");
-    msg += r.hopfenanzahl;
-    msg += F(" Hopfengaben.");
-    HTTP.send(200, "text/plain; charset=utf-8", msg);
+    String h = pageHead("Importiert");
+    h += F("<div class='card'><h2>");
+    h += r.name;
+    h += F("</h2>");
+    h += r.rasten;
+    h += F(" Rasten &middot; ");
+    h += r.kochzeit;
+    h += F(" min Kochen &middot; ");
+    h += r.hopfenanzahl;
+    h += F(" Hopfengaben</div>");
+    h += pageFoot();
+    HTTP.send(200, "text/html; charset=utf-8", h);
 }
