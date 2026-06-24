@@ -422,22 +422,25 @@ static void handleRecipeUpload() {
 
 // Runs after the upload completed: parse, apply, persist.
 static void handleRecipeDone() {
-    File f = LittleFS.open("/upload.tmp", "r");
     Recipe r;
     bool ok = false;
-    if (f) {
-        // sniff the first non-space byte: '<' = BeerXML, otherwise KBH JSON
-        int c = ' ';
-        while (f.available()) {
-            c = f.peek();
-            if (c != ' ' && c != '\t' && c != '\r' && c != '\n') break;
-            f.read();
-        }
-        ok = (c == '<') ? parseBeerXmlStream(f, r) : parseKbhStream(f, r);
-        f.close();
-    }
     {
-        EncoderTimerGuard guard;  // pause timer1 ISR during the flash erase
+        // Reading the upload does raw SPI-flash access (cache disabled) just like
+        // writing — the timer1 encoder ISR must not run flash-resident code
+        // meanwhile, or it faults (WDT reset). Pause it across the whole read.
+        EncoderTimerGuard guard;
+        File f = LittleFS.open("/upload.tmp", "r");
+        if (f) {
+            // sniff the first non-space byte: '<' = BeerXML, otherwise KBH JSON
+            int c = ' ';
+            while (f.available()) {
+                c = f.peek();
+                if (c != ' ' && c != '\t' && c != '\r' && c != '\n') break;
+                f.read();
+            }
+            ok = (c == '<') ? parseBeerXmlStream(f, r) : parseKbhStream(f, r);
+            f.close();
+        }
         LittleFS.remove("/upload.tmp");
     }
 
