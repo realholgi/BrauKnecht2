@@ -38,8 +38,21 @@ static void mapMash(Recipe &r, const int *temps, const int *times, int count) {
 static void mapHops(Recipe &r, const int *beforeEnd, int count) {
     r.hopfenanzahl = 0;
     for (int i = 0; i < count && r.hopfenanzahl < 6; i++) {
+        int t = clampInt(r.kochzeit - beforeEnd[i], 0, r.kochzeit);
+        // Gaben zur gleichen Zeit zusammenfassen: BrauKnecht kennt pro Gabe nur
+        // einen Zeitpunkt (einen Alarm), doppelte Zeiten wären nur Wiederholungen.
+        bool dup = false;
+        for (int j = 1; j <= r.hopfenanzahl; j++) {
+            if (r.hopfenZeit[j] == t) {
+                dup = true;
+                break;
+            }
+        }
+        if (dup) {
+            continue;
+        }
         r.hopfenanzahl++;
-        r.hopfenZeit[r.hopfenanzahl] = clampInt(r.kochzeit - beforeEnd[i], 0, r.kochzeit);
+        r.hopfenZeit[r.hopfenanzahl] = t;
     }
     if (r.hopfenanzahl < 1) {
         r.hopfenanzahl = 1;

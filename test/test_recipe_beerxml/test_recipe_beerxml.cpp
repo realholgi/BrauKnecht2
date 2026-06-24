@@ -48,14 +48,13 @@ void test_xml_mash_steps(void) {
     TEST_ASSERT_EQUAL_INT(60, r.rastZeit[1]);
 }
 
-void test_xml_boil_hops_only_converted(void) {  // dry hop excluded, times converted
+void test_xml_boil_hops_only_converted(void) {  // dry hop excluded, times converted, gleiche Zeiten gemergt
     Recipe r;
     TEST_ASSERT_TRUE(parseBeerXmlString(XML_SAMPLE, r));
-    TEST_ASSERT_EQUAL_INT(4, r.hopfenanzahl);   // 4 boil, not 5
+    // 4 Boil-Gaben (Dry Hop raus) bei 20,0,0,0 -> 10,30,30,30 -> 30er zusammengefasst
+    TEST_ASSERT_EQUAL_INT(2, r.hopfenanzahl);
     TEST_ASSERT_EQUAL_INT(10, r.hopfenZeit[1]); // 30 - 20
-    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[2]);
-    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[3]);
-    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[4]);
+    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[2]); // 30 - 0
 }
 
 void test_xml_rejects_garbage(void) {

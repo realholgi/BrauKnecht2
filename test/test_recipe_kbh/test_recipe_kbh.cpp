@@ -54,14 +54,13 @@ void test_kbh_mash_steps(void) {
     TEST_ASSERT_EQUAL_INT(60, r.rastZeit[1]);
 }
 
-void test_kbh_hops_converted_to_elapsed(void) {  // hopfenZeit = kochzeit - Zeit
+void test_kbh_hops_converted_and_merged(void) {  // hopfenZeit = kochzeit - Zeit; gleiche Zeiten zusammengefasst
     Recipe r;
     TEST_ASSERT_TRUE(parseSample(r));
-    TEST_ASSERT_EQUAL_INT(4, r.hopfenanzahl);
-    TEST_ASSERT_EQUAL_INT(10, r.hopfenZeit[1]); // 30 - 20
-    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[2]); // 30 - 0
-    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[3]);
-    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[4]);
+    // Zeit 20,0,0,0 -> 10,30,30,30 -> drei 30er zu einer Gabe zusammengefasst
+    TEST_ASSERT_EQUAL_INT(2, r.hopfenanzahl);
+    TEST_ASSERT_EQUAL_INT(10, r.hopfenZeit[1]);
+    TEST_ASSERT_EQUAL_INT(30, r.hopfenZeit[2]);
 }
 
 void test_kbh_rejects_non_recipe(void) {
@@ -89,14 +88,14 @@ void test_recipe_round_trip(void) {
     TEST_ASSERT_EQUAL_INT(in.endtemp, out.endtemp);
     TEST_ASSERT_EQUAL_INT(in.kochzeit, out.kochzeit);
     TEST_ASSERT_EQUAL_INT(in.hopfenanzahl, out.hopfenanzahl);
-    TEST_ASSERT_EQUAL_INT(in.hopfenZeit[4], out.hopfenZeit[4]);
+    TEST_ASSERT_EQUAL_INT(in.hopfenZeit[2], out.hopfenZeit[2]);
 }
 
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_kbh_name_and_boil);
     RUN_TEST(test_kbh_mash_steps);
-    RUN_TEST(test_kbh_hops_converted_to_elapsed);
+    RUN_TEST(test_kbh_hops_converted_and_merged);
     RUN_TEST(test_kbh_rejects_non_recipe);
     RUN_TEST(test_recipe_round_trip);
     return UNITY_END();
