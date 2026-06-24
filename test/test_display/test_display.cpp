@@ -55,6 +55,35 @@ void test_formatMinutes_clamp_low(void) {
     TEST_ASSERT_EQUAL_STRING("  0 min", b);
 }
 
+// window of 3 rows over the rest/hop list
+void test_window_fits_no_scroll(void) {
+    TEST_ASSERT_EQUAL_INT(1, listWindowStart(1, 3, 3));
+    TEST_ASSERT_EQUAL_INT(1, listWindowStart(3, 3, 3));
+    TEST_ASSERT_EQUAL_INT(1, listWindowStart(2, 2, 3));  // fewer items than window
+}
+void test_window_cursor_at_start(void) {
+    TEST_ASSERT_EQUAL_INT(1, listWindowStart(1, 7, 3));
+    TEST_ASSERT_EQUAL_INT(1, listWindowStart(2, 7, 3));
+}
+void test_window_cursor_middle(void) {
+    TEST_ASSERT_EQUAL_INT(3, listWindowStart(4, 7, 3));  // window [3,4,5], cursor centred
+}
+void test_window_cursor_at_end(void) {
+    TEST_ASSERT_EQUAL_INT(5, listWindowStart(7, 7, 3));  // clamped: window [5,6,7]
+    TEST_ASSERT_EQUAL_INT(5, listWindowStart(6, 7, 3));
+}
+void test_window_cursor_always_visible(void) {
+    for (int visible = 2; visible <= 3; visible++) {
+        for (int count = 1; count <= 7; count++) {
+            for (int cur = 1; cur <= count; cur++) {
+                int s = listWindowStart(cur, count, visible);
+                TEST_ASSERT_TRUE(cur >= s && cur <= s + visible - 1);  // cursor inside window
+                TEST_ASSERT_TRUE(s >= 1);                              // never before the list
+            }
+        }
+    }
+}
+
 int main(int, char **) {
     UNITY_BEGIN();
     RUN_TEST(test_alignX_left);
@@ -69,5 +98,10 @@ int main(int, char **) {
     RUN_TEST(test_formatMinutes_three_digit);
     RUN_TEST(test_formatMinutes_clamp_high);
     RUN_TEST(test_formatMinutes_clamp_low);
+    RUN_TEST(test_window_fits_no_scroll);
+    RUN_TEST(test_window_cursor_at_start);
+    RUN_TEST(test_window_cursor_middle);
+    RUN_TEST(test_window_cursor_at_end);
+    RUN_TEST(test_window_cursor_always_visible);
     return UNITY_END();
 }

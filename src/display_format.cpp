@@ -28,3 +28,18 @@ void formatMinutes(char *buf, size_t n, int value) {
     }
     snprintf(buf, n, "%3d min", value);
 }
+
+int listWindowStart(int cursor, int count, int visible) {
+    if (count <= visible) {
+        return 1;  // everything fits, no scrolling
+    }
+    int start = cursor - visible / 2;  // keep the cursor roughly centred
+    int maxStart = count - visible + 1;
+    if (start < 1) {
+        start = 1;
+    }
+    if (start > maxStart) {
+        start = maxStart;
+    }
+    return start;
+}
