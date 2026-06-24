@@ -22,7 +22,9 @@ https://holgi.beer/tags/brau-ger%C3%A4tschaft/
 - **Recipe import** (`/recipe`) — upload a Kleiner-Brauhelfer JSON or BeerXML
   file; the mash steps and hop additions are applied and stored in flash.
 - **MQTT / Home Assistant** — publishes temperature, setpoint, heater and mode
-  with Home Assistant auto-discovery (read-only).
+  with Home Assistant auto-discovery (read-only), including an availability
+  topic so HA shows the controller offline when it's powered down.
+- **OTA updates** — flash new firmware over WiFi, no USB cable needed.
 - Hysteresis and boil threshold persist in EEPROM.
 
 ## Hardware
@@ -51,10 +53,15 @@ Built with [PlatformIO](https://platformio.org/) (board `d1_mini_pro`).
 Libraries are pulled automatically from `platformio.ini`.
 
 ```sh
-pio run                 # build
-pio run -t upload       # build and flash
-pio test -e native      # run host-side unit tests
+pio run                       # build (release: no serial logging)
+pio run -t upload             # build and flash over USB
+pio run -e d1_mini_debug -t upload   # flash with serial debug on 115200
+pio run -e d1_mini_ota -t upload     # flash over WiFi (board reachable at bk.local)
+pio test -e native            # run host-side unit tests
+pio check                     # static analysis (cppcheck)
 ```
+
+First flash must be over USB; once it's running, `d1_mini_ota` updates over WiFi.
 
 ## WiFi & web access
 
