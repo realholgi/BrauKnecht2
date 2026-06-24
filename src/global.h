@@ -73,6 +73,7 @@ extern int endtemp;
 extern int kochzeit;
 extern int hopfenanzahl;
 extern int hopfenZeit[];
+extern char recipeName[];
 extern int timer;
 extern float isttemp;
 extern bool heizung;

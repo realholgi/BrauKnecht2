@@ -45,16 +45,16 @@ int stunden = 0;
 MODUS modus = HAUPTSCHIRM;
 MODUS rufmodus = HAUPTSCHIRM;
 int sollwert = 20;
-int maischtemp = 38;
+int maischtemp = 68;
 int rasten = 1;
-int rastTemp[] = {0, 50, 64, 72, 72, 72, 72, 72};
-int rastZeit[] = {0, 40, 30, 20, 15, 20, 20, 20};
-BM_ALARM_MODE braumeister[] = {BM_ALARM_AUS, BM_ALARM_AUS, BM_ALARM_AUS, BM_ALARM_AUS, BM_ALARM_SIGNAL, BM_ALARM_AUS,
-                               BM_ALARM_AUS, BM_ALARM_AUS};
+int rastTemp[8] = {0, 66};   // nur Index 1 = Standardrezept; 2..7 füllen Presets/Import
+int rastZeit[8] = {0, 60};
+BM_ALARM_MODE braumeister[8] = {};   // alle BM_ALARM_AUS; pro Rast im Edit-Screen gesetzt
 int endtemp = 78;
-int kochzeit = 90;
+int kochzeit = 60;
 int hopfenanzahl = 2;
-int hopfenZeit[] = {0, 10, 80, 80, 80, 40, 40};
+int hopfenZeit[] = {0, 10, 50, 80, 80, 40, 40};
+char recipeName[40] = "Standardrezept";
 
 int timer = 10;
 float isttemp = 20;
