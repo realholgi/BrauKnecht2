@@ -79,6 +79,11 @@ void print_lcd_deg(int x, int y) {
     lcd.write(8);
 }
 
+bool lcdNeedsRedraw = true;  // set on every clear so the next render draws once
+bool overlaysDirty = true;   // set on every clear; the loop() overlays (temp/soll/H) redraw once
+
 void lcd_clear() {
     lcd.clear();
+    lcdNeedsRedraw = true;
+    overlaysDirty = true;
 }

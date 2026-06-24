@@ -4,6 +4,7 @@
 
 void funktion_hauptschirm();
 void funktion_setupmenu();
+void funktion_rezeptfrage(const char *titleP, MODUS startModus, MODUS editModus);
 void funktion_temperatur();
 void funktion_temperatur_halten();
 void funktion_rastanzahl();

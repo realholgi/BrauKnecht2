@@ -5,6 +5,7 @@
 #include "global.h"
 #include "config.h"
 #include "display.h"
+#include "display_format.h"
 #include "hardware.h"
 #include "statemachine.h"
 #include "persistence.h"
@@ -15,15 +16,173 @@ static unsigned long rufsignalzeit = 0;
 
 static void _next_koch_step();
 
+// ---- enriched recipe input rendering -------------------------------------
+// These render the whole mash/boil plan on the 20x4 LCD with a '>' cursor on
+// the item being edited, so the input screens double as a recipe overview.
+
+// The mash plan is one scrolling list. Positions (1-indexed):
+//   1            -> Einmaischen (maischtemp)
+//   2..rasten+1  -> rest (pos-1): temperature + time
+//   rasten+2     -> Abmaischen (endtemp)
+// field: 0 = editing temperature, 1 = editing time (rests only).
+
+// Einmaischen/Abmaischen row: "label .... 64°C", bracketed when it's the cursor.
+static void render_plan_named_row(int dy, const char *labelP, int value, bool cursor) {
+    char b[DISPLAY_SIZE_X + 1];
+    memset(b, ' ', DISPLAY_SIZE_X);
+    b[DISPLAY_SIZE_X] = '\0';
+    b[0] = cursor ? '>' : ' ';
+    char lab[DISPLAY_SIZE_X + 1];
+    strcpy_P(lab, labelP);
+    for (int i = 0; lab[i] && i + 1 < DISPLAY_SIZE_X; i++) b[i + 1] = lab[i];
+    char t[4];
+    snprintf(t, sizeof(t), "%3d", value);
+    b[14] = t[0]; b[15] = t[1]; b[16] = t[2];  // b[17] = degree glyph "°C"
+    if (cursor) { b[13] = '['; b[18] = ']'; }
+    print_lcd(b, LEFT, dy);
+    print_lcd_deg(17, dy);
+}
+
+// Rest row: ">1: 65°C   30 min", active field bracketed when it's the cursor.
+static void render_plan_rest_row(int dy, int idx, bool cursor, int field) {
+    char b[DISPLAY_SIZE_X + 1];
+    memset(b, ' ', DISPLAY_SIZE_X);
+    b[DISPLAY_SIZE_X] = '\0';
+    b[0] = cursor ? '>' : ' ';
+    b[1] = static_cast<char>('0' + idx);
+    b[2] = ':';
+    char t[4];
+    snprintf(t, sizeof(t), "%3d", rastTemp[idx]);
+    b[4] = t[0]; b[5] = t[1]; b[6] = t[2];  // b[7] = degree glyph "°C"
+    if (cursor && field == 0) { b[3] = '['; b[8] = ']'; }
+    char z[8];
+    formatMinutes(z, sizeof(z), rastZeit[idx]);  // "XXX min" (7 chars)
+    for (int i = 0; i < 7; i++) b[12 + i] = z[i];
+    if (cursor && field == 1) { b[11] = '['; b[19] = ']'; }
+    print_lcd(b, LEFT, dy);
+    print_lcd_deg(7, dy);
+}
+
+static void render_plan_row(int dy, int pos, int activePos, int field) {
+    int count = rasten + 2;
+    bool cursor = (pos == activePos);
+    if (pos < 1 || pos > count) {
+        char blank[DISPLAY_SIZE_X + 1];
+        memset(blank, ' ', DISPLAY_SIZE_X);
+        blank[DISPLAY_SIZE_X] = '\0';
+        print_lcd(blank, LEFT, dy);
+    } else if (pos == 1) {
+        render_plan_named_row(dy, PSTR("Einmaischen"), maischtemp, cursor);
+    } else if (pos == count) {
+        render_plan_named_row(dy, PSTR("Abmaischen"), endtemp, cursor);
+    } else {
+        render_plan_rest_row(dy, pos - 1, cursor, field);
+    }
+}
+
+// Header + 2-row scrolling window over the whole mash plan, cursor on the item
+// being edited. Row 3 is owned by the live-temperature overlay (loop()).
+static void render_mash_plan(int activePos, int field) {
+    print_lcdP(PSTR("Auto"), LEFT, 0);  // every frame: first print after clear glitches on slow clones
+
+    int count = rasten + 2;
+    // Only the value at the cursor changes between frames; skip the LCD writes
+    // when nothing changed so the display isn't rewritten every loop (flicker).
+    int val = (activePos == 1)     ? maischtemp
+            : (activePos == count) ? endtemp
+            : (field == 0)         ? rastTemp[activePos - 1]
+                                   : rastZeit[activePos - 1];
+    static int lp = -1, lf = -1, lv = -1, lc = -1;
+    if (!lcdNeedsRedraw && activePos == lp && field == lf && val == lv && count == lc) {
+        return;
+    }
+    lp = activePos; lf = field; lv = val; lc = count;
+    lcdNeedsRedraw = false;
+
+    print_lcdP(PSTR("Maischen"), RIGHT, 0);
+
+    int start = listWindowStart(activePos, count, 2);
+    for (int dy = 1; dy <= 2; dy++) {
+        render_plan_row(dy, start + dy - 1, activePos, field);
+    }
+}
+
+// Header + 3-row scrolling window over the hop additions, cursor on hop `x`.
+static void render_hop_list() {
+    print_lcdP(PSTR("Kochen"), LEFT, 0);  // every frame: first print after clear glitches on slow clones
+
+    static int lx = -1, lv = -1, ln = -1;
+    if (!lcdNeedsRedraw && x == lx && hopfenZeit[x] == lv && hopfenanzahl == ln) {
+        return;  // unchanged -> skip writes (prevents flicker)
+    }
+    lx = x; lv = hopfenZeit[x]; ln = hopfenanzahl;
+    lcdNeedsRedraw = false;
+
+    char hb[DISPLAY_SIZE_X + 1];
+    snprintf(hb, sizeof(hb), "Gabe %d von %d", x, hopfenanzahl);
+    print_lcd(hb, RIGHT, 0);
+
+    // rows 1-2 only; row 3 is owned by the live-temperature overlay (loop()).
+    int start = listWindowStart(x, hopfenanzahl, 2);
+    for (int dy = 1; dy <= 2; dy++) {
+        int idx = start + dy - 1;
+        char b[DISPLAY_SIZE_X + 1];
+        memset(b, ' ', DISPLAY_SIZE_X);
+        b[DISPLAY_SIZE_X] = '\0';
+        if (idx >= 1 && idx <= hopfenanzahl) {
+            bool cur = (idx == x);
+            b[0] = cur ? '>' : ' ';
+            b[1] = static_cast<char>('0' + idx);
+            b[2] = ':';
+            memcpy(b + 4, "nach", 4);
+            char z[8];
+            formatMinutes(z, sizeof(z), hopfenZeit[idx]);
+            for (int i = 0; i < 7; i++) b[12 + i] = z[i];
+            if (cur) { b[11] = '['; b[19] = ']'; }
+        }
+        print_lcd(b, LEFT, dy);
+    }
+}
+
+// Recipe chooser (Start / Bearbeiten) shown before the mash or boil edit chain.
+static void render_rezept_frage(const char *titleP, int sel) {
+    // Title every frame: the first print right after lcd_clear() corrupts its
+    // first char on slow LCD clones, so a once-only title would stay "0aischen".
+    print_lcdP(titleP, LEFT, 0);
+
+    static int ls = -1;
+    if (!lcdNeedsRedraw && sel == ls) {
+        return;  // only the selection changes between frames
+    }
+    ls = sel;
+    lcdNeedsRedraw = false;
+
+    char nm[DISPLAY_SIZE_X + 1];
+    snprintf(nm, sizeof(nm), "%-20s", recipeName);  // pad to clear leftovers
+    print_lcd(nm, LEFT, 1);
+
+    // Both options on row 2 ('>' marks the selection); row 3 stays free for the
+    // live-temperature overlay drawn in loop().
+    char b[DISPLAY_SIZE_X + 1];
+    memset(b, ' ', DISPLAY_SIZE_X);
+    b[DISPLAY_SIZE_X] = '\0';
+    b[0] = (sel == 0) ? '>' : ' ';
+    memcpy(b + 1, "Start", 5);
+    const int p2 = DISPLAY_SIZE_X - 10;  // "Bearbeiten" right-aligned, cols 10..19
+    if (sel == 1) b[p2 - 1] = '>';
+    memcpy(b + p2, "Bearbeiten", 10);
+    print_lcd(b, LEFT, 2);
+}
+
 void funktion_hauptschirm() {
     if (anfang) {
         lcd_clear();
         drehen = 0;
         anfang = false;
-        print_lcdP(PSTR("Maischautomatik"), 2, 0);
-        print_lcdP(PSTR("Maischen manuell"), 2, 1);
-        print_lcdP(PSTR("Kochen"), 2, 2);
-        print_lcdP(PSTR("Setup"), 2, 3);
+        print_lcdP(PSTR("Maischautomatik"), 1, 0);
+        print_lcdP(PSTR("Maischen manuell"), 1, 1);
+        print_lcdP(PSTR("Kochen"), 1, 2);
+        print_lcdP(PSTR("Setup"), 1, 3);
     }
 
     drehen = constrain(drehen, 0, 3);
@@ -31,13 +190,13 @@ void funktion_hauptschirm() {
     menu_zeiger(drehen);
     switch (drehen) {
         case 0:
-            rufmodus = AUTOMATIK;
+            rufmodus = AUTOMATIK_FRAGE;
             break;
         case 1:
             rufmodus = MANUELL;
             break;
         case 2:
-            rufmodus = KOCHEN;
+            rufmodus = KOCHEN_FRAGE;
             break;
         case 3:
             rufmodus = SETUP_MENU;
@@ -61,8 +220,8 @@ void funktion_setupmenu() {
         lcd_clear();
         drehen = 0;
         anfang = false;
-        print_lcdP(PSTR("Kochschwelle"), 2, 0);
-        print_lcdP(PSTR("Hysterese"), 2, 1);
+        print_lcdP(PSTR("Kochschwelle"), 1, 0);
+        print_lcdP(PSTR("Hysterese"), 1, 1);
     }
 
     drehen = constrain(drehen, 0, 1);
@@ -82,6 +241,25 @@ void funktion_setupmenu() {
 
     if (warte_und_weiter(rufmodus)) {
         lcd_clear();
+    }
+}
+
+// Chooser shown when entering Maischautomatik / Kochen: Start the loaded recipe
+// straight away, or Bearbeiten to step through the edit chain as before.
+void funktion_rezeptfrage(const char *titleP, MODUS startModus, MODUS editModus) {
+    if (anfang) {
+        lcd_clear();
+        drehen = 0;
+        anfang = false;
+    }
+
+    drehen = constrain(drehen, 0, 1);
+    render_rezept_frage(titleP, drehen);
+    rufmodus = (drehen == 0) ? startModus : editModus;
+
+    if (warte_und_weiter(rufmodus)) {
+        lcd_clear();
+        x = 1;  // the edit chain normally initialises the rest/hop index
     }
 }
 
@@ -130,9 +308,11 @@ void funktion_temperatur_halten() {
 }
 
 void funktion_rastanzahl() {
+    static int presetApplied = 0;  // rest count whose preset template is loaded
     if (anfang) {
         lcd_clear();
         drehen = rasten;
+        presetApplied = rasten;  // keep current/imported/edited values on (re)entry
         anfang = false;
         print_lcdP(PSTR("Auto"), LEFT, 0);
         print_lcdP(PSTR("Eingabe"), RIGHT, 0);
@@ -142,7 +322,11 @@ void funktion_rastanzahl() {
     drehen = constrain(drehen, 1, 5);
     rasten = drehen;
 
-    switch (drehen) {
+    // Load preset temps/times only when the count actually changes, so stepping
+    // back into this screen (or importing a recipe) doesn't clobber edits.
+    if (drehen != presetApplied) {
+        presetApplied = drehen;
+        switch (drehen) {
         case 1:
             rastTemp[1] = 66;
             rastZeit[1] = 60;
@@ -193,7 +377,8 @@ void funktion_rastanzahl() {
             maischtemp = 30;
             break;
 
-        default:;
+            default:;
+        }
     }
 
     printNumI_lcd(rasten, 19, 1);
@@ -206,16 +391,12 @@ void funktion_maischtemperatur() {
         lcd_clear();
         drehen = maischtemp;
         anfang = false;
-        print_lcdP(PSTR("Auto"), LEFT, 0);
-        print_lcdP(PSTR("Eingabe"), RIGHT, 0);
     }
 
     drehen = constrain(drehen, 10, 105);
     maischtemp = drehen;
 
-    print_lcdP(PSTR("Maischtemp"), LEFT, 1);
-    printNumF_lcd(maischtemp, 15, 1);
-    print_lcd_deg(19, 1);
+    render_mash_plan(1, 0);  // cursor on Einmaischen (first item)
 
     warte_und_weiter(EINGABE_RAST_TEMP);
 }
@@ -225,23 +406,19 @@ void funktion_rasteingabe() {
         lcd_clear();
         drehen = rastTemp[x];
         anfang = false;
-        print_lcdP(PSTR("Auto"), LEFT, 0);
-        print_lcdP(PSTR("Eingabe"), RIGHT, 0);
     }
 
     drehen = constrain(drehen, 9, 105);
     rastTemp[x] = drehen;
 
-    printNumI_lcd(x, LEFT, 1);
-    print_lcdP(PSTR(". Rast"), 1, 1);
-    printNumF_lcd(rastTemp[x], 15, 1);
-    print_lcd_deg(19, 1);
+    render_mash_plan(x + 1, 0);  // cursor on rest x, editing temperature
 
     warte_und_weiter(EINGABE_RAST_ZEIT);
 }
 
 void funktion_zeiteingabe() {
     if (anfang) {
+        lcd_clear();
         drehen = rastZeit[x];
         anfang = false;
     }
@@ -249,9 +426,7 @@ void funktion_zeiteingabe() {
     drehen = constrain(drehen, 1, 99);
     rastZeit[x] = drehen;
 
-    print_lcd_minutes(rastZeit[x], RIGHT, 2);
-
-    //warte_und_weiter(EINGABE_BRAUMEISTERRUF);
+    render_mash_plan(x + 1, 1);  // cursor on rest x, editing time
 
     braumeister[x] = BM_ALARM_AUS;
 
@@ -271,16 +446,12 @@ void funktion_endtempeingabe() {
         lcd_clear();
         drehen = endtemp;
         anfang = false;
-        print_lcdP(PSTR("Auto"), LEFT, 0);
-        print_lcdP(PSTR("Eingabe"), RIGHT, 0);
     }
 
     drehen = constrain(drehen, 10, 80);
     endtemp = drehen;
 
-    print_lcdP(PSTR("Endtemperatur"), LEFT, 1);
-    printNumF_lcd(endtemp, 15, 1);
-    print_lcd_deg(19, 1);
+    render_mash_plan(rasten + 2, 0);  // cursor on Abmaischen (last item)
 
     warte_und_weiter(AUTO_START);
 }
@@ -288,10 +459,13 @@ void funktion_endtempeingabe() {
 void funktion_startabfrage(MODUS naechsterModus, const char *title) {
     if (anfang) {
         lcd_clear();
-        print_lcd(title, LEFT, 0);
         anfang = false;
         altsekunden = millis();
     }
+
+    // Redraw every frame: the first print right after lcd_clear() corrupts its
+    // first char on slow LCD clones, and a once-only title would keep the glitch.
+    print_lcd(title, LEFT, 0);
 
     if (millis() >= (altsekunden + 1000)) {
         print_lcdP(PSTR("       "), CENTER, 2);
@@ -351,16 +525,11 @@ void funktion_tempautomatik() {
 }
 
 void funktion_zeitautomatik() {
+    // Zeitzählung-Init (einmalig)
     if (anfang) {
         drehen = rastZeit[x];
-        //wartezeit = millis() + 60000;  // sofort aufheizen
-        heizung = true;
-    }
+        heizung = true;  //wartezeit = millis() + 60000;  // sofort aufheizen
 
-    print_lcd_minutes(rastZeit[x], RIGHT, 2);
-
-    // Zeitzählung---------------
-    if (anfang) {
         print_lcdP(PSTR("Set Time"), LEFT, 3);
         setTime(00, 00, 00, 00, 01, 01); // Sekunden auf 0 stellen
         delay(400); //test
@@ -374,26 +543,34 @@ void funktion_zeitautomatik() {
         print_lcdP(PSTR("00:00"), LEFT, 2);
     }
 
-    if (sekunden < 10) {
-        printNumI_lcd(sekunden, 4, 2);
-        if (sekunden == 0) {
-            print_lcdP(PSTR("0"), 3, 2);
-        }
-    } else {
-        printNumI_lcd(sekunden, 3, 2);
-    }
-
-    minuten = (stunden * 60) + minutenwert;
-
-    if (minuten < 10) {
-        printNumI_lcd(minuten, 1, 2);
-    } else {
-        printNumI_lcd(minuten, 0, 2);
-    }
-    // Ende Zeitzählung---------------------
-
     drehen = constrain(drehen, 10, 105);
     rastZeit[x] = drehen; // Encoderzuordnung
+    minuten = (stunden * 60) + minutenwert;
+
+    // Anzeige nur bei Sekunden-/Zielzeit-Wechsel neu zeichnen (sonst Flackern)
+    static int lastSek = -1, lastZeit = -1;
+    if (lcdNeedsRedraw || sekunden != lastSek || rastZeit[x] != lastZeit) {
+        lastSek = sekunden;
+        lastZeit = rastZeit[x];
+        lcdNeedsRedraw = false;
+
+        print_lcd_minutes(rastZeit[x], RIGHT, 2);
+
+        if (sekunden < 10) {
+            printNumI_lcd(sekunden, 4, 2);
+            if (sekunden == 0) {
+                print_lcdP(PSTR("0"), 3, 2);
+            }
+        } else {
+            printNumI_lcd(sekunden, 3, 2);
+        }
+
+        if (minuten < 10) {
+            printNumI_lcd(minuten, 1, 2);
+        } else {
+            printNumI_lcd(minuten, 0, 2);
+        }
+    }
 
     if (minuten >= rastZeit[x]) {
         anfang = true;
@@ -574,36 +751,36 @@ void funktion_anzahlhopfengaben() {
 
     printNumI_lcd(hopfenanzahl, RIGHT, 1);
 
-    warte_und_weiter(EINGABE_HOPFENGABEN_ZEIT);
+    if (warte_und_weiter(EINGABE_HOPFENGABEN_ZEIT)) {
+        x = 1;  // start at the first hop (the zeit screen keeps x so back-step works)
+    }
 }
 
 void funktion_hopfengaben() {
     if (anfang) {
-        x = 1;
-        drehen = hopfenZeit[x];
+        drehen = hopfenZeit[x];  // x is set on entry (anzahl screen) / back-step
         anfang = false;
         lcd_clear();
-        print_lcdP(PSTR("Kochen"), LEFT, 0);
-        print_lcdP(PSTR("Eingabe"), RIGHT, 0);
     }
 
-    printNumI_lcd(x, LEFT, 1);
-    print_lcdP(PSTR(". Hopfengabe"), 1, 1);
-    print_lcdP(PSTR("nach"), LEFT, 2);
-
-    drehen = constrain(drehen, hopfenZeit[(x - 1)] + 5, kochzeit - 5);
+    // Untergrenze = vorige Gabe + 5 min Mindestabstand; Obergrenze 5 min vor
+    // Kochende. Bei enger Kochzeit Untergrenze kappen, damit der Bereich nie
+    // degeneriert (min > max), sonst flackert der Wert.
+    int lo = hopfenZeit[x - 1] + 5;
+    int hi = kochzeit - 5;
+    if (lo > hi) {
+        lo = hi;
+    }
+    drehen = constrain(drehen, lo, hi);
     hopfenZeit[x] = drehen;
 
-    print_lcd_minutes(hopfenZeit[x], RIGHT, 2);
+    render_hop_list();
 
     if (warte_und_weiter(modus)) {
         if (x < hopfenanzahl) {
             x++;
             drehen = hopfenZeit[x];
-            print_lcdP(PSTR("  "), LEFT, 1);
-            print_lcdP(PSTR("   "), 13, 2);
-            delay(400);
-            anfang = false; // nicht auf Anfang zurück
+            anfang = false; // nicht auf Anfang zurück, nur Cursor weiter
         } else {
             x = 1;
             modus = KOCHEN_START_FRAGE;
@@ -648,36 +825,43 @@ void funktion_hopfenzeitautomatik() {
         print_lcdP(PSTR("00:00"), 11, 1);
     }
 
-    if (x <= hopfenanzahl) {
-        printNumI_lcd(x, LEFT, 2);
-        print_lcdP(PSTR(". Gabe bei "), 1, 2);
-        print_lcd_minutes(hopfenZeit[x], RIGHT, 2);
-    } else {
-        print_lcdP(PSTR("                    "), 0, 2);
-    }
-
-    print_lcdP(PSTR("min"), RIGHT, 1);
-
-    if (sekunden < 10) {
-        printNumI_lcd(sekunden, 15, 1);
-        if (sekunden) {
-            print_lcdP(PSTR("0"), 14, 1);
-        }
-    } else {
-        printNumI_lcd(sekunden, 14, 1);
-    }
-
     minuten = (stunden * 60) + minutenwert;
-    if (minuten < 10) {
-        printNumI_lcd(minuten, 12, 1);
-    }
 
-    if ((minuten >= 10) && (minuten < 100)) {
-        printNumI_lcd(minuten, 11, 1);
-    }
+    // Anzeige nur bei Sekunden-/Gaben-Wechsel neu zeichnen (sonst Flackern)
+    static int lastSek = -1, lastX = -1;
+    if (lcdNeedsRedraw || sekunden != lastSek || x != lastX) {
+        lastSek = sekunden;
+        lastX = x;
+        lcdNeedsRedraw = false;
 
-    if (minuten >= 100) {
-        printNumI_lcd(minuten, 10, 1);
+        if (x <= hopfenanzahl) {
+            printNumI_lcd(x, LEFT, 2);
+            print_lcdP(PSTR(". Gabe bei "), 1, 2);
+            print_lcd_minutes(hopfenZeit[x], RIGHT, 2);
+        } else {
+            print_lcdP(PSTR("                    "), 0, 2);
+        }
+
+        print_lcdP(PSTR("min"), RIGHT, 1);
+
+        if (sekunden < 10) {
+            printNumI_lcd(sekunden, 15, 1);
+            if (sekunden) {
+                print_lcdP(PSTR("0"), 14, 1);
+            }
+        } else {
+            printNumI_lcd(sekunden, 14, 1);
+        }
+
+        if (minuten < 10) {
+            printNumI_lcd(minuten, 12, 1);
+        }
+        if ((minuten >= 10) && (minuten < 100)) {
+            printNumI_lcd(minuten, 11, 1);
+        }
+        if (minuten >= 100) {
+            printNumI_lcd(minuten, 10, 1);
+        }
     }
 
     if ((x <= hopfenanzahl) && (minuten == hopfenZeit[x])) {  // Hopfengabe

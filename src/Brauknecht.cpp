@@ -163,20 +163,32 @@ void loop() {
         }
     }
 
-    // Temperaturanzeige Istwert
-    if (!sensorfehler) {
-        print_lcdP(PSTR("ist "), 10, 3);
-        printNumF_lcd(isttemp, 15, 3);
-        print_lcd_deg(19, 3);
-    } else {
-        print_lcdP(PSTR("   ERR"), RIGHT, 3);
+    // Temperaturanzeige Istwert — nur neu zeichnen bei Wertänderung (0.1°C) oder
+    // nach einem Clear, sonst flackert die Zeile durch dauerndes Neuschreiben.
+    {
+        static int lastShown = -100000;
+        int shown = sensorfehler ? -99999 : static_cast<int>(isttemp * 10);
+        if (overlaysDirty || shown != lastShown) {
+            lastShown = shown;
+            if (!sensorfehler) {
+                print_lcdP(PSTR("ist "), 10, 3);
+                printNumF_lcd(isttemp, 15, 3);
+                print_lcd_deg(19, 3);
+            } else {
+                print_lcdP(PSTR("   ERR"), RIGHT, 3);
+            }
+        }
     }
 
     // Heizregelung
     if (regelung == REGL_MAISCHEN) {
-        print_lcdP(PSTR("soll "), 9, 1);
-        printNumF_lcd(sollwert, 15, 1);
-        print_lcd_deg(19, 1);
+        static int lastSoll = -1000;
+        if (overlaysDirty || sollwert != lastSoll) {
+            lastSoll = sollwert;
+            print_lcdP(PSTR("soll "), 9, 1);
+            printNumF_lcd(sollwert, 15, 1);
+            print_lcd_deg(19, 1);
+        }
 
         /*
           Regelung beim Hochfahren: Heizung schaltet 0,5°C vor Sollwert aus
@@ -229,11 +241,12 @@ void loop() {
         heizung = true;
     }
 
-    if (heizung && regelung != REGL_AUS) {
-        print_lcdP(PSTR("H"), LEFT, 3);
-    } else {
-        print_lcdP(PSTR(" "), LEFT, 3);
+    // Heizanzeige nur beim Brauen; sonst gehört Zeile 3 / Spalte 0 dem
+    // Menücursor bzw. dem Screen (sonst flackert z. B. das ">" bei "Setup").
+    if (regelung != REGL_AUS) {
+        print_lcdP(heizung ? PSTR("H") : PSTR(" "), LEFT, 3);
     }
+    overlaysDirty = false;  // temp/soll haben das Flag gelesen
 
     heizungOnOff(heizung);
 

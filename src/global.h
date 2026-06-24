@@ -29,7 +29,11 @@ enum MODUS {
     KOCHEN_AUFHEIZEN,
     KOCHEN_AUTO_LAUF,
     ABBRUCH,
-    ALARMTEST
+    ALARMTEST,
+    // appended at the end so existing MODUS integer values (published over MQTT
+    // and /data.json) stay stable:
+    AUTOMATIK_FRAGE,        // Rezept-Chooser (Start/Bearbeiten) vor dem Maischen
+    KOCHEN_FRAGE            // Rezept-Chooser (Start/Bearbeiten) vor dem Kochen
 };
 enum REGEL_MODE {
     REGL_AUS = 0,

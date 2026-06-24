@@ -45,6 +45,16 @@ void stateMachine() {
             print_lcdP(PSTR("Alarmtest"), RIGHT, 0);
             break;
 
+        case AUTOMATIK_FRAGE:
+            regelung = REGL_AUS;
+            funktion_rezeptfrage(PSTR("Maischen"), AUTO_START, EINGABE_RAST_ANZ);
+            break;
+
+        case KOCHEN_FRAGE:
+            regelung = REGL_AUS;
+            funktion_rezeptfrage(PSTR("Kochen"), KOCHEN_START_FRAGE, KOCHEN);
+            break;
+
         case EINGABE_RAST_ANZ:
             regelung = REGL_AUS;
             funktion_rastanzahl();
@@ -76,7 +86,7 @@ void stateMachine() {
 
         case AUTO_START:
             regelung = REGL_AUS;
-            funktion_startabfrage(AUTO_MAISCHTEMP, "Auto");
+            funktion_startabfrage(AUTO_MAISCHTEMP, "Maischen");
             break;
 
         case AUTO_MAISCHTEMP:
@@ -159,12 +169,7 @@ bool warte_und_weiter(MODUS naechsterModus) {
 }
 
 void menu_zeiger(int pos) {
-    int p;
-    for (p = 0; p <= 3; p++) {
-        if (p == pos) {
-            print_lcdP(PSTR("=>"), LEFT, p);
-        } else {
-            print_lcdP(PSTR("  "), LEFT, p);
-        }
+    for (int p = 0; p <= 3; p++) {
+        print_lcdP(p == pos ? PSTR(">") : PSTR(" "), LEFT, p);  // cursor at col 0, items at col 1
     }
 }
