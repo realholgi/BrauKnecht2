@@ -3,6 +3,7 @@
 #include "input.h"
 #include "config.h"
 #include "global.h"
+#include "statemachine.h"
 
 ClickEncoder encoder1 = ClickEncoder(encoderPinA, encoderPinB, tasterPin, ENCODER_STEPS_PER_NOTCH);
 
@@ -24,6 +25,13 @@ void encoderTimerPause() {
 }
 
 void encoderTimerSetup() {
+    // Double-click = "back one step". The window is a tradeoff: every single
+    // click is delayed this long (to tell it apart from a double), but too short
+    // and a relaxed double-click reads as two single clicks. 280 ms is the
+    // chosen balance.
+    encoder1.setDoubleClickEnabled(true);
+    encoder1.setDoubleClickTime(280);
+
     timer1_isr_init();
     timer1_attachInterrupt(encoderTicker);
     timerReady = true;
@@ -34,20 +42,21 @@ bool getButton() {
     ButtonPressed = false;
 
     ClickEncoder::Button b = encoder1.getButton();
-    if (b != ClickEncoder::Open) {
-        switch (b) {
-            case ClickEncoder::Held:
-                modus = ABBRUCH;
-                break;
+    switch (b) {
+        case ClickEncoder::Held:
+            modus = ABBRUCH;       // long-press: stop / back to main menu
+            break;
 
-            case ClickEncoder::Clicked:
-                ButtonPressed = true;
-                break;
+        case ClickEncoder::DoubleClicked:
+            goBackOneStep();       // double-click: step back one screen (input only)
+            break;
 
-            default:
-                ButtonPressed = false;
-                break;
-        }
+        case ClickEncoder::Clicked:
+            ButtonPressed = true;
+            break;
+
+        default:
+            break;
     }
 
     return ButtonPressed;

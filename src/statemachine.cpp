@@ -155,6 +155,75 @@ void stateMachine() {
     }
 }
 
+// Step back one screen in the linear input flow. Mirrors the forward
+// transitions in warte_und_weiter()/the screen functions. Called on long-press
+// only while not brewing (regelung == REGL_AUS); during a brew the long-press
+// keeps its stop-and-abort meaning (see getButton()).
+void goBackOneStep() {
+    switch (modus) {
+        case AUTOMATIK_FRAGE:
+        case KOCHEN_FRAGE:
+            modus = HAUPTSCHIRM;
+            break;
+
+        case EINGABE_RAST_ANZ:
+            modus = AUTOMATIK_FRAGE;
+            break;
+        case EINGABE_MAISCHTEMP:
+            modus = EINGABE_RAST_ANZ;
+            break;
+        case EINGABE_RAST_TEMP:
+            if (x > 1) {
+                x--;
+                modus = EINGABE_RAST_ZEIT;  // back to the previous rest's time
+            } else {
+                modus = EINGABE_MAISCHTEMP;
+            }
+            break;
+        case EINGABE_RAST_ZEIT:
+            modus = EINGABE_RAST_TEMP;       // same rest, back to its temperature
+            break;
+        case EINGABE_ENDTEMP:
+            x = rasten;
+            modus = EINGABE_RAST_ZEIT;       // back to the last rest's time
+            break;
+        case AUTO_START:
+            modus = EINGABE_ENDTEMP;
+            break;
+
+        case KOCHEN:  // boil-time entry
+            modus = KOCHEN_FRAGE;
+            break;
+        case EINGABE_HOPFENGABEN_ANZAHL:
+            modus = KOCHEN;
+            break;
+        case EINGABE_HOPFENGABEN_ZEIT:
+            if (x > 1) {
+                x--;                         // back to the previous hop, same screen
+            } else {
+                modus = EINGABE_HOPFENGABEN_ANZAHL;
+            }
+            break;
+        case KOCHEN_START_FRAGE:
+            x = hopfenanzahl;
+            modus = EINGABE_HOPFENGABEN_ZEIT;
+            break;
+
+        case SETUP_MENU:
+            modus = HAUPTSCHIRM;
+            break;
+        case SETUP_HYSTERESE:
+        case SETUP_KOCHSCHWELLE:
+            modus = SETUP_MENU;
+            break;
+
+        default:
+            return;  // HAUPTSCHIRM (nothing above it) or nothing to do
+    }
+    anfang = true;
+    lcd_clear();
+}
+
 bool warte_und_weiter(MODUS naechsterModus) {
     if (!ButtonPressed) {
         einmaldruck = true;
