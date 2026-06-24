@@ -386,16 +386,49 @@ static void handleConfigPost() {
 
 static File uploadFile;
 
+// Full recipe view: a vertical-schedule timeline that lists every rest
+// (temp + time) and every hop addition. Used by both the import page and the
+// import-success page.
+static void appendRecipeCard(String &h, const Recipe &r) {
+    h += F("<div class='card'><h2>");
+    h += r.name;
+    h += F("</h2><div class='tl'>"
+           "<div class='tl-row tl-node'><span class='tl-label'>Einmaischen</span><span class='tl-badge'>");
+    h += r.maischtemp;
+    h += F("&deg;C</span></div>");
+
+    for (int i = 1; i <= r.rasten; i++) {
+        h += F("<div class='tl-row'><span class='tl-label'>");
+        h += i;
+        h += F(". Rast ");
+        h += r.rastTemp[i];
+        h += F("&deg;C</span><span class='tl-badge'>");
+        h += r.rastZeit[i];
+        h += F(" min</span></div>");
+    }
+
+    h += F("<div class='tl-row tl-node'><span class='tl-label'>Abmaischen</span><span class='tl-badge'>");
+    h += r.endtemp;
+    h += F("&deg;C</span></div>"
+           "<div class='tl-row tl-boil'><span class='tl-label'>Kochen</span><span class='tl-badge'>");
+    h += r.kochzeit;
+    h += F(" min</span></div><div class='tl-hops'>");
+
+    for (int i = 1; i <= r.hopfenanzahl; i++) {
+        h += F("<span class='tl-hop'>");
+        h += i;
+        h += F(". nach ");
+        h += r.hopfenZeit[i];
+        h += F(" min</span>");
+    }
+    h += F("</div></div></div>");  // close tl-hops, tl, card
+}
+
 static void handleRecipeGet() {
     String h = pageHead("Rezept-Import");
-    h += F("<div class='card'><h2>Aktuelles Rezept</h2>Einmaischen ");
-    h += maischtemp;
-    h += F("&deg;C &middot; ");
-    h += rasten;
-    h += F(" Rasten &middot; ");
-    h += kochzeit;
-    h += F(" min Kochen</div>"
-           "<form class='card' method='POST' action='/recipe' enctype='multipart/form-data'>"
+    Recipe cur = currentRecipe();
+    appendRecipeCard(h, cur);
+    h += F("<form class='card' method='POST' action='/recipe' enctype='multipart/form-data'>"
            "<label>Kleiner-Brauhelfer JSON oder BeerXML</label>"
            "<input type='file' name='recipe' accept='.json,.xml'>"
            "<button class='btn' type='submit'>Importieren</button></form>");
@@ -456,15 +489,7 @@ static void handleRecipeDone() {
     saveRecipe(r);
 
     String h = pageHead("Importiert");
-    h += F("<div class='card'><h2>");
-    h += r.name;
-    h += F("</h2>");
-    h += r.rasten;
-    h += F(" Rasten &middot; ");
-    h += r.kochzeit;
-    h += F(" min Kochen &middot; ");
-    h += r.hopfenanzahl;
-    h += F(" Hopfengaben</div>");
+    appendRecipeCard(h, r);
     h += pageFoot();
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
