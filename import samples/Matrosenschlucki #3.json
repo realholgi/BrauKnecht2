@@ -1,0 +1,359 @@
+{
+    "Etiketten": [
+        {
+            "AbstandHor": 0,
+            "AbstandVert": 0,
+            "Anzahl": 25,
+            "Ausrichtung": 0,
+            "Breite": 185,
+            "Hintergrundfarbe": 16777215,
+            "Hoehe": 20,
+            "Papiergroesse": 0,
+            "Pfad": "/Users/holgi/.config/kleiner-brauhelfer/data/Etiketten/halsspitz.svg",
+            "RandLinks": 5,
+            "RandOben": 10,
+            "RandRechts": 5,
+            "RandUnten": 15
+        }
+    ],
+    "Global": {
+        "db_Version": 2009
+    },
+    "Hauptgaerverlauf": [
+        {
+            "Alc": 0,
+            "Bemerkung": "",
+            "Restextrakt": 12.9,
+            "Temp": 18,
+            "Zeitstempel": "2023-09-15T16:00:44.000"
+        }
+    ],
+    "Hefegaben": [
+        {
+            "Menge": 1,
+            "Name": "Fermentis SAFBREW WB-06",
+            "ZugabeNach": 0,
+            "Zugegeben": 1
+        },
+        {
+            "Menge": 1,
+            "Name": "GOZDAWA Pure Ale Yeast",
+            "ZugabeNach": 0,
+            "Zugegeben": 1
+        }
+    ],
+    "Hopfengaben": [
+        {
+            "Alpha": 12.4,
+            "Name": "Magnum",
+            "Pellets": 1,
+            "Prozent": 15.025899686134819,
+            "Vorderwuerze": 1,
+            "Zeit": 60,
+            "erg_Menge": 12.080899640704882
+        },
+        {
+            "Alpha": 13.4,
+            "Name": "Simcoe",
+            "Pellets": 1,
+            "Prozent": 16,
+            "Vorderwuerze": 0,
+            "Zeit": 10,
+            "erg_Menge": 12.864081238985039
+        },
+        {
+            "Alpha": 9.9,
+            "Name": "Centennial",
+            "Pellets": 1,
+            "Prozent": 14.97410031386518,
+            "Vorderwuerze": 0,
+            "Zeit": 10,
+            "erg_Menge": 12.039252682392064
+        },
+        {
+            "Alpha": 5.7,
+            "Name": "Cascade",
+            "Pellets": 1,
+            "Prozent": 11.5,
+            "Vorderwuerze": 0,
+            "Zeit": 5,
+            "erg_Menge": 9.246058390520496
+        },
+        {
+            "Alpha": 9.9,
+            "Name": "Centennial",
+            "Pellets": 1,
+            "Prozent": 12.5,
+            "Vorderwuerze": 0,
+            "Zeit": 5,
+            "erg_Menge": 10.050063467957061
+        },
+        {
+            "Alpha": 13.4,
+            "Name": "Simcoe",
+            "Pellets": 1,
+            "Prozent": 0,
+            "Vorderwuerze": 0,
+            "Zeit": 0,
+            "erg_Menge": 0
+        },
+        {
+            "Alpha": 9.9,
+            "Name": "Centennial",
+            "Pellets": 1,
+            "Prozent": 0,
+            "Vorderwuerze": 0,
+            "Zeit": 0,
+            "erg_Menge": 0
+        }
+    ],
+    "Maischplan": [
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 100,
+            "AnteilWasser": 100,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 1,
+            "Name": "Einmaischen",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 20,
+            "TempRast": 45,
+            "TempWasser": 47.027452607300674,
+            "Typ": 0
+        },
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 0,
+            "AnteilWasser": 0,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 15,
+            "Name": "Weizenrast (45°)",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 0,
+            "TempRast": 45,
+            "TempWasser": 0,
+            "Typ": 1
+        },
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 0,
+            "AnteilWasser": 0,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 20,
+            "Name": "Maltoserast (60°-65°)",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 0,
+            "TempRast": 63,
+            "TempWasser": 0,
+            "Typ": 1
+        },
+        {
+            "AnteilMaische": 0,
+            "AnteilMalz": 0,
+            "AnteilWasser": 0,
+            "DauerExtra1": 0,
+            "DauerExtra2": 0,
+            "DauerRast": 35,
+            "Name": "Verzuckerung (70°-75°)",
+            "TempExtra1": 0,
+            "TempExtra2": 0,
+            "TempMalz": 0,
+            "TempRast": 72,
+            "TempWasser": 0,
+            "Typ": 1
+        }
+    ],
+    "Malzschuettung": [
+        {
+            "Farbe": 4,
+            "Name": "Pilsener Malz ",
+            "Potential": 0,
+            "Prozent": 42.0440757150597,
+            "erg_Menge": 3.047682225328758,
+            "pH": 5.8
+        },
+        {
+            "Farbe": 4,
+            "Name": "Weizenmalz hell ",
+            "Potential": 0,
+            "Prozent": 42.967323176766094,
+            "erg_Menge": 3.1146063955184387,
+            "pH": 5.8
+        },
+        {
+            "Farbe": 4,
+            "Name": "Hafermalz",
+            "Potential": 0,
+            "Prozent": 4.996200369391406,
+            "erg_Menge": 0.3621635343626092,
+            "pH": 5.8
+        },
+        {
+            "Farbe": 1,
+            "Name": "Haferflocken",
+            "Potential": 0,
+            "Prozent": 4.996200369391406,
+            "erg_Menge": 0.3621635343626092,
+            "pH": 6.16
+        },
+        {
+            "Farbe": 70,
+            "Name": "Melanoidinmalz ",
+            "Potential": 0,
+            "Prozent": 4.996200369391406,
+            "erg_Menge": 0.3621635343626092,
+            "pH": 4.84
+        }
+    ],
+    "Nachgaerverlauf": [
+        {
+            "Bemerkung": "",
+            "CO2": 2.775895776873617,
+            "Druck": 0,
+            "Temp": 4,
+            "Zeitstempel": "2023-09-24T09:51:35.000"
+        }
+    ],
+    "Schnellgaerverlauf": [
+        {
+            "Alc": 0,
+            "Bemerkung": "",
+            "Restextrakt": 12.9,
+            "Temp": 18,
+            "Zeitstempel": "2023-09-15T16:00:44.000"
+        }
+    ],
+    "Sud": {
+        "Abfuelldatum": "2023-09-24T09:51:35.000",
+        "Anlage": "Hendi BIAB kleiner Sud",
+        "AusbeuteIgnorieren": 0,
+        "BemerkungAbfuellen": "",
+        "BemerkungBrauen": "",
+        "BemerkungGaerung": "",
+        "BemerkungMaischplan": "",
+        "BemerkungWasseraufbereitung": "",
+        "BemerkungZutatenGaerung": "",
+        "BemerkungZutatenKochen": "",
+        "BemerkungZutatenMaischen": "",
+        "Braudatum": "2023-09-15T16:00:44.000",
+        "CO2": 5.5,
+        "Erstellt": "2022-07-14T06:50:56.000",
+        "FaktorHauptguss": 5,
+        "Gespeichert": "2024-03-05T22:51:15.000",
+        "IBU": 45,
+        "JungbiermengeAbfuellen": 22,
+        "Kategorie": "White IPA",
+        "Kochdauer": 60,
+        "Kommentar": "<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">HopStand 15min</p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">1Tl Gips beim Kochen zugegeben</p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Citra durch Amarillo ersetzt</p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">2 blaue Schüsseln Grünhopfen in den Whilpool anstelle den angegebenen Hopfen.</p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">Am Nachmittag von Tag 2 bei voller Hauptgärung kaltgehopft. </p>\n<p style=\"-qt-paragraph-type:empty; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><br /></p>\n<p style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\">An Tag 5 nochmal kaltgehopft nach Coldcrash</p>",
+        "KostenWasserStrom": 0,
+        "Menge": 27.000000000000025,
+        "MengeHefestarter": 0,
+        "MerklistenID": 0,
+        "Nachisomerisierungszeit": 15,
+        "Reifezeit": 2,
+        "ReifungStart": "2023-09-24T00:00:00.000Z",
+        "RestalkalitaetSoll": -5.5,
+        "SW": 13.5,
+        "SWAnstellen": 12.9,
+        "SWHefestarter": 0,
+        "SWJungbier": 1.8,
+        "SWKochbeginn": 11.5,
+        "SWKochende": 13.5,
+        "SWSchnellgaerprobe": 12.9,
+        "SchnellgaerprobeAktiv": 0,
+        "Speisemenge": 0,
+        "Spunden": 1,
+        "Status": 3,
+        "Sudhausausbeute": 55,
+        "Sudname": "Matrosenschlucki #3",
+        "Sudnummer": 99,
+        "TemperaturJungbier": 4,
+        "TemperaturKarbonisierung": 4,
+        "Verdampfungsrate": 5,
+        "VerduennungAnstellen": 0,
+        "Vergaerungsgrad": 70,
+        "VerschneidungAbfuellen": 0,
+        "Wasserprofil": "Karlsruhe",
+        "WuerzemengeAnstellen": 26.5,
+        "WuerzemengeKochbeginn": 33.6,
+        "WuerzemengeKochende": 33,
+        "WuerzemengeVorHopfenseihen": 33,
+        "berechnungsArtHopfen": -1,
+        "erg_AbgefuellteBiermenge": 22,
+        "erg_Alkohol": 6.025695823176148,
+        "erg_EffektiveAusbeute": 49.62013151088066,
+        "erg_Farbe": 11.149268414167391,
+        "erg_Preis": 0.9363411055617062,
+        "erg_S_Gesamt": 7.248779223935023,
+        "erg_Sudhausausbeute": 64.82142857142851,
+        "erg_WHauptguss": 36.243896119675114,
+        "erg_WNachguss": 3.7149319353025367,
+        "erg_W_Gesamt": 39.95882805497765,
+        "highGravityFaktor": 0
+    },
+    "Wasseraufbereitung": [
+        {
+            "Einheit": 5,
+            "Faktor": -0.0333,
+            "Menge": 0.2910000000000001,
+            "Name": "Milchsäure (80%)",
+            "Restalkalitaet": -8.738738738738741
+        }
+    ],
+    "WeitereZutatenGaben": [
+        {
+            "Ausbeute": 0,
+            "Bemerkung": "",
+            "Einheit": 1,
+            "Entnahmeindex": 0,
+            "Farbe": 0,
+            "Menge": 1.4629629629629617,
+            "Name": "Simcoe",
+            "Typ": 100,
+            "Unvergaerbar": 0,
+            "Zeitpunkt": 0,
+            "ZugabeNach": 1,
+            "Zugabedauer": 11520,
+            "Zugabestatus": 2,
+            "erg_Menge": 39.5
+        },
+        {
+            "Ausbeute": 0,
+            "Bemerkung": "",
+            "Einheit": 1,
+            "Entnahmeindex": 0,
+            "Farbe": 0,
+            "Menge": 1,
+            "Name": "Centennial",
+            "Typ": 100,
+            "Unvergaerbar": 0,
+            "Zeitpunkt": 0,
+            "ZugabeNach": 1,
+            "Zugabedauer": 11520,
+            "Zugabestatus": 2,
+            "erg_Menge": 27.000000000000025
+        },
+        {
+            "Ausbeute": 0,
+            "Bemerkung": "",
+            "Einheit": 1,
+            "Entnahmeindex": 0,
+            "Farbe": 0,
+            "Menge": 1.5,
+            "Name": "Amarillo",
+            "Typ": 100,
+            "Unvergaerbar": 0,
+            "Zeitpunkt": 0,
+            "ZugabeNach": 1,
+            "Zugabedauer": 11520,
+            "Zugabestatus": 2,
+            "erg_Menge": 40.500000000000036
+        }
+    ]
+}
