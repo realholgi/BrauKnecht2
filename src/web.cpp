@@ -13,7 +13,6 @@
 #include "input.h"
 
 const char *ap_ssid = APSSID;
-const char *ap_password = APPSK;
 
 ESP8266WebServer HTTP(80);
 

@@ -65,11 +65,10 @@ First flash must be over USB; once it's running, `d1_mini_ota` updates over WiFi
 
 ## WiFi & web access
 
-The device always runs its own access point, and additionally joins your home
-network once configured (`/config`):
+The device always runs its own open access point, and additionally joins your
+home network once configured (`/config`):
 
 - AP SSID: `BrauKnecht`
-- AP password: `brauknecht`
 
 Connect to the AP (or reach it on your LAN once joined) and open
 **http://bk.local/** for the live status page. From there:

@@ -59,7 +59,6 @@ constexpr int HENDI_MAX_RUNTIME = 85;
 constexpr int ENCODER_STEPS_PER_NOTCH = 4;   // Change this depending on which encoder is used
 
 constexpr char APSSID[] = "BrauKnecht";
-constexpr char APPSK[] = "brauknecht";
 
 extern int sekunden;
 extern int minuten;
