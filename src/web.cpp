@@ -239,6 +239,7 @@ void handleDataJson() {
 
     json["modus"] = static_cast<int>(modus);
     json["rufmodus"] = static_cast<int>(rufmodus);
+    json["alarm"] = isRufalarmMode(modus);
     json["regelung"] = static_cast<int>(regelung);
 
     json["maischtemp"] = maischtemp;

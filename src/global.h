@@ -35,6 +35,11 @@ enum MODUS {
     AUTOMATIK_FRAGE,        // Rezept-Chooser (Start/Bearbeiten) vor dem Maischen
     KOCHEN_FRAGE            // Rezept-Chooser (Start/Bearbeiten) vor dem Kochen
 };
+
+inline bool isRufalarmMode(MODUS mode) {
+    return mode == BRAUMEISTERRUFALARM || mode == BRAUMEISTERRUF;
+}
+
 enum REGEL_MODE {
     REGL_AUS = 0,
     REGL_MAISCHEN,

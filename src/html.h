@@ -178,7 +178,7 @@ async function tick(){
       $('detailCard').style.display = 'none';
     }
 
-    const alarm = d.rufmodus == 28 || d.modus == 18;
+    const alarm = d.alarm === true;
     $('alarm').style.display = alarm ? 'block' : 'none';
     document.title = alarm ? '⚠ RUFALARM' : 'BrauKnecht';
     $('conn').textContent = 'Aktualisiert';
