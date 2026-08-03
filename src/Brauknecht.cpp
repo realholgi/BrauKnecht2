@@ -17,6 +17,7 @@
 #include "settings.h"
 #include "mqtt.h"
 #include "recipe.h"
+#include "build_info.h"
 
 void watchdogSetup();
 
@@ -70,7 +71,9 @@ void setup() {
 
     lcd_init();
 
-    print_lcdP(PSTR("BK V2.6 - LC2004"), LEFT, 0);
+    char splashTitle[DISPLAY_SIZE_X + 1];
+    snprintf(splashTitle, sizeof(splashTitle), "BrauKnecht %s", firmwareVersion());
+    print_lcd(splashTitle, LEFT, 0);
     print_lcdP(PSTR(""), LEFT, 1);
     print_lcdP(PSTR(":)"), RIGHT, 2);
     print_lcdP(PSTR("by realholgi"), LEFT, 3);
