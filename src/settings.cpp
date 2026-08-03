@@ -15,7 +15,7 @@ void settingsDefaults(Settings &s) {
 bool settingsFromJson(const char *json, Settings &s) {
     settingsDefaults(s);
 
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     if (deserializeJson(doc, json)) {
         return false;
     }
@@ -30,7 +30,7 @@ bool settingsFromJson(const char *json, Settings &s) {
 }
 
 size_t settingsToJson(const Settings &s, char *buf, size_t n) {
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["sta_ssid"] = s.sta_ssid;
     doc["sta_pass"] = s.sta_pass;
     doc["mqtt_host"] = s.mqtt_host;

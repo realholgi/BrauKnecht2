@@ -234,7 +234,7 @@ void handleDataJson() {
             title += modus;
     }
 
-    DynamicJsonDocument json(3072);
+    JsonDocument json;
 
     json["title"] = title;
     json["title2"] = title2;
@@ -270,15 +270,15 @@ void handleDataJson() {
     Recipe cur = currentRecipe();
     json["recipe_name"] = cur.name;
     json["recipe_maischtemp"] = cur.maischtemp;
-    JsonArray recipeRests = json.createNestedArray("recipe_rasten");
+    JsonArray recipeRests = json["recipe_rasten"].to<JsonArray>();
     for (int i = 1; i <= cur.rasten && i <= 7; i++) {
-        JsonObject rest = recipeRests.createNestedObject();
+        JsonObject rest = recipeRests.add<JsonObject>();
         rest["temp"] = cur.rastTemp[i];
         rest["zeit"] = cur.rastZeit[i];
     }
     json["recipe_endtemp"] = cur.endtemp;
     json["recipe_kochzeit"] = cur.kochzeit;
-    JsonArray recipeHops = json.createNestedArray("recipe_hopfen");
+    JsonArray recipeHops = json["recipe_hopfen"].to<JsonArray>();
     for (int i = 1; i <= cur.hopfenanzahl && i <= 6; i++) {
         recipeHops.add(cur.hopfenZeit[i]);
     }
@@ -316,7 +316,7 @@ static void handleManualPost() {
     modus = MANUELL;
     anfang = true;
 
-    DynamicJsonDocument json(192);
+    JsonDocument json;
     json["temp_soll"] = sollwert;
     json["modus"] = static_cast<int>(modus);
 

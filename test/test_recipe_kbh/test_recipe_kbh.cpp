@@ -28,9 +28,9 @@ void setUp(void) {}
 void tearDown(void) {}
 
 static bool parseSample(Recipe &r) {
-    StaticJsonDocument<512> filter;
+    JsonDocument filter;
     buildKbhFilter(filter);
-    StaticJsonDocument<2048> doc;
+    JsonDocument doc;
     if (deserializeJson(doc, KBH_SAMPLE, DeserializationOption::Filter(filter))) {
         return false;
     }
@@ -64,7 +64,7 @@ void test_kbh_hops_converted_and_merged(void) {  // hopfenZeit = kochzeit - Zeit
 }
 
 void test_kbh_rejects_non_recipe(void) {
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
     deserializeJson(doc, "{\"foo\":1}");
     Recipe r;
     TEST_ASSERT_FALSE(parseKbhDoc(doc, r));

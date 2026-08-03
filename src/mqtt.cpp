@@ -38,7 +38,7 @@ static void publishConfig(const char *component, const char *key, const char *na
     char tmpl[40];
     snprintf(tmpl, sizeof(tmpl), "{{ value_json.%s }}", key);
 
-    StaticJsonDocument<512> doc;
+    JsonDocument doc;
     doc["name"] = name;
     doc["uniq_id"] = uniq;
     doc["stat_t"] = stateTopic;
@@ -50,8 +50,8 @@ static void publishConfig(const char *component, const char *key, const char *na
     if (devClass) {
         doc["dev_cla"] = devClass;
     }
-    JsonObject dev = doc.createNestedObject("dev");
-    dev.createNestedArray("ids").add(nodeId);
+    JsonObject dev = doc["dev"].to<JsonObject>();
+    dev["ids"].to<JsonArray>().add(nodeId);
     dev["name"] = "BrauKnecht";
     dev["mdl"] = "BrauKnecht2";
     dev["mf"] = "realholgi";
@@ -69,7 +69,7 @@ static void publishDiscovery() {
 }
 
 static void publishState() {
-    StaticJsonDocument<128> doc;
+    JsonDocument doc;
     doc["isttemp"] = isttemp;
     doc["sollwert"] = sollwert;
     doc["heizung"] = heizung ? "ON" : "OFF";

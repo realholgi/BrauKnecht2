@@ -204,7 +204,7 @@ bool parseBeerXmlString(const char *xml, Recipe &r) {
 // --- our own persistence format ----------------------------------------------
 
 size_t recipeToJson(const Recipe &r, char *buf, size_t n) {
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     doc["name"] = r.name;
     doc["maischtemp"] = r.maischtemp;
     doc["rasten"] = r.rasten;
@@ -212,13 +212,13 @@ size_t recipeToJson(const Recipe &r, char *buf, size_t n) {
     doc["kochzeit"] = r.kochzeit;
     doc["hopfenanzahl"] = r.hopfenanzahl;
 
-    JsonArray rt = doc.createNestedArray("rastTemp");
-    JsonArray rz = doc.createNestedArray("rastZeit");
+    JsonArray rt = doc["rastTemp"].to<JsonArray>();
+    JsonArray rz = doc["rastZeit"].to<JsonArray>();
     for (int i = 1; i <= r.rasten; i++) {
         rt.add(r.rastTemp[i]);
         rz.add(r.rastZeit[i]);
     }
-    JsonArray hz = doc.createNestedArray("hopfenZeit");
+    JsonArray hz = doc["hopfenZeit"].to<JsonArray>();
     for (int i = 1; i <= r.hopfenanzahl; i++) {
         hz.add(r.hopfenZeit[i]);
     }
@@ -228,7 +228,7 @@ size_t recipeToJson(const Recipe &r, char *buf, size_t n) {
 bool recipeFromJson(const char *json, Recipe &r) {
     memset(&r, 0, sizeof(r));
 
-    DynamicJsonDocument doc(1024);
+    JsonDocument doc;
     if (deserializeJson(doc, json)) {
         return false;
     }

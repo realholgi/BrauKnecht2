@@ -43,10 +43,10 @@ Recipe currentRecipe() {
 }
 
 bool parseKbhStream(Stream &in, Recipe &r) {
-    StaticJsonDocument<512> filter;
+    JsonDocument filter;
     buildKbhFilter(filter);
 
-    DynamicJsonDocument doc(2048);
+    JsonDocument doc;
     if (deserializeJson(doc, in, DeserializationOption::Filter(filter))) {
         return false;
     }
