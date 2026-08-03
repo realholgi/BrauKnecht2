@@ -11,6 +11,8 @@
 #include "settings.h"
 #include "recipe.h"
 #include "input.h"
+#include "manual_control.h"
+#include "build_info.h"
 
 const char *ap_ssid = APSSID;
 
@@ -26,9 +28,13 @@ static void handleConfigPost();
 static void handleRecipeGet();
 static void handleRecipeDone();
 static void handleRecipeUpload();
+static void handleHistory();
+static void handleManualPost();
 
 void setupWebserver() {
+    HTTP.collectHeaders("X-BrauKnecht-Action");
     HTTP.on("/", handleRoot);
+    HTTP.on("/history", HTTP_GET, handleHistory);
     HTTP.on("/style.css", HTTP_GET, []() {
         HTTP.sendHeader("Cache-Control", "max-age=86400");
         HTTP.send_P(200, "text/css", STYLE_CSS);
@@ -42,6 +48,7 @@ void setupWebserver() {
     HTTP.on("/config", HTTP_POST, handleConfigPost);
     HTTP.on("/recipe", HTTP_GET, handleRecipeGet);
     HTTP.on("/recipe", HTTP_POST, handleRecipeDone, handleRecipeUpload);
+    HTTP.on("/manual", HTTP_POST, handleManualPost);
 
     HTTP.onNotFound(handleNotFound);
     HTTP.begin();
@@ -227,7 +234,7 @@ void handleDataJson() {
             title += modus;
     }
 
-    DynamicJsonDocument json(1024);
+    DynamicJsonDocument json(3072);
 
     json["title"] = title;
     json["title2"] = title2;
@@ -255,6 +262,27 @@ void handleDataJson() {
     json["kochzeit"] = kochzeit;
     json["hopfenanzahl"] = hopfenanzahl;
 
+    json["firmware_version"] = firmwareVersion();
+    json["build_hash"] = buildGitHash();
+    json["build_time"] = buildTime();
+    json["build_env"] = buildEnvironment();
+
+    Recipe cur = currentRecipe();
+    json["recipe_name"] = cur.name;
+    json["recipe_maischtemp"] = cur.maischtemp;
+    JsonArray recipeRests = json.createNestedArray("recipe_rasten");
+    for (int i = 1; i <= cur.rasten && i <= 7; i++) {
+        JsonObject rest = recipeRests.createNestedObject();
+        rest["temp"] = cur.rastTemp[i];
+        rest["zeit"] = cur.rastZeit[i];
+    }
+    json["recipe_endtemp"] = cur.endtemp;
+    json["recipe_kochzeit"] = cur.kochzeit;
+    JsonArray recipeHops = json.createNestedArray("recipe_hopfen");
+    for (int i = 1; i <= cur.hopfenanzahl && i <= 6; i++) {
+        recipeHops.add(cur.hopfenZeit[i]);
+    }
+
     String message = "";
     serializeJson(json, message);
 
@@ -262,7 +290,39 @@ void handleDataJson() {
 }
 
 void handleRoot() {
-    HTTP.send_P(200, "text/html", PAGE_Kochen);
+    HTTP.send_P(200, "text/html", PAGE_Dashboard);
+}
+
+static void handleHistory() {
+    HTTP.send_P(200, "text/html", PAGE_History);
+}
+
+static void handleManualPost() {
+    if (!HTTP.hasHeader("X-BrauKnecht-Action") || HTTP.header("X-BrauKnecht-Action") != "manual") {
+        HTTP.send(403, "application/json;charset=utf-8", "{\"error\":\"forbidden\"}");
+        return;
+    }
+
+    int raw = sollwert;
+    if (HTTP.hasArg("soll")) {
+        raw = HTTP.arg("soll").toInt();
+    } else if (HTTP.hasArg("temp_soll")) {
+        raw = HTTP.arg("temp_soll").toInt();
+    }
+
+    int value = clampManualSetpoint(raw);
+    sollwert = value;
+    drehen = value;
+    modus = MANUELL;
+    anfang = true;
+
+    DynamicJsonDocument json(192);
+    json["temp_soll"] = sollwert;
+    json["modus"] = static_cast<int>(modus);
+
+    String message;
+    serializeJson(json, message);
+    HTTP.send(200, "application/json;charset=utf-8", message);
 }
 
 bool setupWIFI() {
@@ -287,22 +347,96 @@ bool setupWIFI() {
     return false;
 }
 
-// Shared page shell — links the local /style.css so all pages match the
-// status page's look (hero header + glass cards).
-static String pageHead(const char *title) {
+// Shared page shell: all generated pages use the same app shell as the static
+// dashboard/history pages.
+static String htmlEscape(const char *value) {
+    String out;
+    for (const char *p = value; *p; p++) {
+        switch (*p) {
+            case '&': out += F("&amp;"); break;
+            case '<': out += F("&lt;"); break;
+            case '>': out += F("&gt;"); break;
+            case '"': out += F("&quot;"); break;
+            case '\'': out += F("&#39;"); break;
+            default: out += *p; break;
+        }
+    }
+    return out;
+}
+
+static void appendNavLink(String &h, const char *href, const char *label, const char *icon, const char *active) {
+    h += F("<a class='nav-link");
+    if (strcmp(active, label) == 0) {
+        h += F(" active");
+    }
+    h += F("' href='");
+    h += href;
+    h += F("'>");
+    h += icon;
+    h += F("<span>");
+    h += label;
+    h += F("</span></a>");
+}
+
+static void appendNav(String &h, const char *active, bool bottom) {
+    static const char *dashIcon = "<svg viewBox='0 0 24 24'><path class='nav-fill' d='M3 11.5 12 4l9 7.5-1.4 1.7-1.1-.9V21h-5v-6h-3v6h-5v-8.7l-1.1.9Z'/></svg>";
+    static const char *histIcon = "<svg viewBox='0 0 24 24'><path d='M4 19h16'/><path d='M5 15l5-5 4 3 5-7'/></svg>";
+    static const char *recipeIcon = "<svg viewBox='0 0 24 24'><path d='M7 3h7l4 4v14H7z'/><path d='M14 3v5h5'/><path d='M10 13h5'/><path d='M10 17h5'/></svg>";
+    static const char *settingsIcon = "<svg viewBox='0 0 24 24'><path d='M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z'/><path d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.04 14H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.97a1.7 1.7 0 0 0-.34-1.88l-.06-.06A2 2 0 1 1 7.03 4.2l.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.04V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.51 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 10H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z'/></svg>";
+    h += bottom ? F("<nav class='bottom-nav' aria-label='Navigation'>") : F("<nav class='side-nav' aria-label='Navigation'>");
+    appendNavLink(h, "/", "Dashboard", dashIcon, active);
+    appendNavLink(h, "/history", "Verlauf", histIcon, active);
+    appendNavLink(h, "/recipe", "Rezept", recipeIcon, active);
+    appendNavLink(h, "/config", "Einstellungen", settingsIcon, active);
+    h += F("</nav>");
+}
+
+static String pageHead(const char *title, const char *active) {
     String h = F("<!DOCTYPE html><html lang='de'><head><meta charset='utf-8'>"
                  "<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
                  "<link rel='icon' href='data:,'><link rel='stylesheet' href='/style.css'><title>");
     h += title;
-    h += F("</title></head><body><main class='page'>"
-           "<section class='hero fade'><p class='eyebrow'>BrauKnecht</p><h1>");
+    h += F("</title></head><body><main class='app'><div class='topbar'><div class='brand'>BrauKnecht</div></div><div class='layout'>");
+    appendNav(h, active, false);
+    h += F("<section class='grid'><h1 class='page-title'>");
     h += title;
-    h += F("</h1></section>");
+    h += F("</h1>");
     return h;
 }
 
-static String pageFoot() {
-    return F("<p class='links'><a href='/'>&larr; Status</a></p></main></body></html>");
+static String pageFoot(const char *active) {
+    String h = F("</section></div></main>");
+    appendNav(h, active, true);
+    h += F("</body></html>");
+    return h;
+}
+
+static void appendDeviceInfoCard(String &h) {
+    char buildTimeText[24];
+    formatBuildTime(buildTimeText, sizeof(buildTimeText), buildTime());
+
+    h += F("<article class='card settings-info-card'><div class='section-title'>"
+           "<svg viewBox='0 0 24 24'><circle cx='12' cy='12' r='10'/><path d='M12 16v-4'/><path d='M12 8h.01'/></svg>"
+           "<span>Ger&auml;teinfo</span></div><ul class='rows'>"
+           "<li><span class='row-label'>Firmware</span><span class='row-value'>");
+    h += firmwareVersion();
+    h += F("</span></li><li><span class='row-label'>Build</span><span class='row-value'>");
+    h += buildGitHash();
+    h += F("</span></li><li><span class='row-label'>Build-Zeit</span><span class='row-value'>");
+    h += buildTimeText;
+    h += F("</span></li><li><span class='row-label'>IP</span><span class='row-value'>");
+    h += WiFi.localIP().toString();
+    h += F("</span></li><li><span class='row-label'>AP-IP</span><span class='row-value'>");
+    h += WiFi.softAPIP().toString();
+    h += F("</span></li>");
+    if (strlen(settings.mqtt_host)) {
+        h += F("<li><span class='row-label'>MQTT</span><span class='row-value'>");
+        h += htmlEscape(settings.mqtt_host);
+        h += F(":");
+        h += settings.mqtt_port;
+        h += F("</span></li>");
+    }
+    h += F("</ul></article>");
 }
 
 static void handleConfigGet() {
@@ -317,14 +451,15 @@ static void handleConfigGet() {
         String c;
         for (int i = 0; i < scanCount; i++) {
             String s = WiFi.SSID(i);
-            if (s.length() == 0 || s.indexOf('\'') >= 0) continue;  // skip empty/quote SSIDs
+            if (s.length() == 0) continue;
             if (s == APSSID || s == settings.sta_ssid) continue;   // own AP / already selected
-            String tag = "value='" + s + "'";
+            String escaped = htmlEscape(s.c_str());
+            String tag = "value=\"" + escaped + "\"";
             if (c.indexOf(tag) >= 0) continue;                     // same SSID on several APs/channels
             c += F("<option ");
             c += tag;
             c += F(">");
-            c += s;
+            c += escaped;
             c += F("</option>");
         }
         wifiCache = c;
@@ -335,30 +470,37 @@ static void handleConfigGet() {
     // current SSID first (stays selected even if not in range right now)
     String opts;
     if (strlen(settings.sta_ssid)) {
-        opts += F("<option selected value='");
-        opts += settings.sta_ssid;
-        opts += F("'>");
-        opts += settings.sta_ssid;
+        String ssid = htmlEscape(settings.sta_ssid);
+        opts += F("<option selected value=\"");
+        opts += ssid;
+        opts += F("\">");
+        opts += ssid;
         opts += F("</option>");
     } else {
-        opts += F("<option value=''>&ndash; ausw&auml;hlen &ndash;</option>");
+        opts += F("<option value=\"\">&ndash; ausw&auml;hlen &ndash;</option>");
     }
     opts += wifiCache;
 
-    String h = pageHead("Einstellungen");
-    h += F("<form class='card' method='POST' action='/config'>"
-           "<label>WLAN SSID</label><select name='sta_ssid'>");
+    String h = pageHead("Einstellungen", "Einstellungen");
+    h += F("<form class='settings-form' method='POST' action='/config'>"
+           "<article class='card'><div class='section-title'>"
+           "<svg viewBox='0 0 24 24'><path d='M5 12.5a10 10 0 0 1 14 0'/><path d='M8.5 16a5 5 0 0 1 7 0'/><path d='M12 20h.01'/></svg>"
+           "<span>WLAN</span></div><div class='field-grid two'><div><label>SSID</label><select name='sta_ssid'>");
     h += opts;
-    h += F("</select><label>WLAN Passwort</label><input name='sta_pass' type='password' placeholder='unver&auml;ndert'>"
-           "<label>MQTT Host</label><input name='mqtt_host' value='");
-    h += settings.mqtt_host;
-    h += F("'><label>MQTT Port</label><input name='mqtt_port' inputmode='numeric' value='");
+    h += F("</select></div><div><label>Passwort</label><input name='sta_pass' type='password' placeholder='unver&auml;ndert'></div></div>"
+           "<p class='small'>AP bleibt offen: BrauKnecht</p></article>"
+           "<article class='card'><div class='section-title'>"
+           "<svg viewBox='0 0 24 24'><circle cx='12' cy='5' r='2'/><circle cx='5' cy='19' r='2'/><circle cx='19' cy='19' r='2'/><path d='M12 7v4'/><path d='M12 11 5 17'/><path d='M12 11l7 6'/></svg>"
+           "<span>MQTT</span></div><div class='field-grid three'><div><label>Host</label><input name='mqtt_host' value=\"");
+    h += htmlEscape(settings.mqtt_host);
+    h += F("\"></div><div><label>Port</label><input name='mqtt_port' inputmode='numeric' value='");
     h += settings.mqtt_port;
-    h += F("'><label>MQTT User</label><input name='mqtt_user' value='");
-    h += settings.mqtt_user;
-    h += F("'><label>MQTT Passwort</label><input name='mqtt_pass' type='password' placeholder='unver&auml;ndert'>"
-           "<button class='btn' type='submit'>Speichern &amp; Neustart</button></form>");
-    h += pageFoot();
+    h += F("'></div><div><label>User</label><input name='mqtt_user' value=\"");
+    h += htmlEscape(settings.mqtt_user);
+    h += F("\"></div></div><label>Passwort</label><input name='mqtt_pass' type='password' placeholder='unver&auml;ndert'></article>");
+    appendDeviceInfoCard(h);
+    h += F("<div class='settings-actions'><button class='btn full' type='submit'>Speichern &amp; Neustart</button></div></form>");
+    h += pageFoot("Einstellungen");
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
 
@@ -366,8 +508,8 @@ static void handleConfigPost() {
     strlcpy(settings.sta_ssid, HTTP.arg("sta_ssid").c_str(), sizeof(settings.sta_ssid));
     strlcpy(settings.mqtt_host, HTTP.arg("mqtt_host").c_str(), sizeof(settings.mqtt_host));
     strlcpy(settings.mqtt_user, HTTP.arg("mqtt_user").c_str(), sizeof(settings.mqtt_user));
-    settings.mqtt_port = HTTP.arg("mqtt_port").toInt();
-    if (!settings.mqtt_port) settings.mqtt_port = 1883;  // blank/0 -> default
+    long port = HTTP.arg("mqtt_port").toInt();
+    settings.mqtt_port = (port > 0 && port <= 65535) ? static_cast<uint16_t>(port) : 1883;
     // keep existing passwords if the field was left blank
     if (HTTP.arg("sta_pass").length()) {
         strlcpy(settings.sta_pass, HTTP.arg("sta_pass").c_str(), sizeof(settings.sta_pass));
@@ -379,7 +521,7 @@ static void handleConfigPost() {
     saveSettings(settings);
 
     HTTP.send(200, "text/html; charset=utf-8",
-              pageHead("Neustart") + F("<div class='card'>Gespeichert. Neustart&hellip;</div>") + pageFoot());
+              pageHead("Neustart", "Einstellungen") + F("<div class='card'>Gespeichert. Neustart&hellip;</div>") + pageFoot("Einstellungen"));
     delay(1000);
     ESP.restart();
 }
@@ -390,49 +532,87 @@ static File uploadFile;
 // (temp + time) and every hop addition. Used by both the import page and the
 // import-success page.
 static void appendRecipeCard(String &h, const Recipe &r) {
-    h += F("<div class='card'><h2>");
-    h += r.name;
-    h += F("</h2><div class='tl'>"
-           "<div class='tl-row tl-node'><span class='tl-label'>Einmaischen</span><span class='tl-badge'>");
+    String name = htmlEscape(r.name);
+    const char *mashIcon = "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M5 19c8 0 14-6 14-14C11 5 5 11 5 19Z'/><path d='M5 19c4-5 8-8 14-14'/></svg>";
+    const char *mashChipIcon = "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M8 19c-2-3 2-4 0-7'/><path d='M12 19c-2-3 2-4 0-7'/><path d='M16 19c-2-3 2-4 0-7'/></svg>";
+    const char *mashoutIcon = "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11Z'/><path d='M9.5 15a2.5 2.5 0 0 0 5 0'/></svg>";
+    const char *boilIcon = "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M8 9h8v9a2 2 0 0 1-2 2h-4a2 2 0 0 1-2-2Z'/><path d='M6 12h12'/><path d='M9 5c-1 1.2 1 2.2 0 3.4'/><path d='M13 4c-1 1.2 1 2.2 0 3.4'/><path d='M17 5c-1 1.2 1 2.2 0 3.4'/></svg>";
+    const char *hopIcon = "<svg viewBox='0 0 24 24' aria-hidden='true'><path d='M12 3c4 3 6 7 6 11a6 6 0 0 1-12 0c0-4 2-8 6-11Z'/><path d='M12 3v18'/><path d='M8 10l4 3 4-3'/><path d='M7 14l5 3 5-3'/></svg>";
+
+    h += F("<article class='card'><div class='recipe-summary'><div><h2>");
+    h += name;
+    h += F(" <span class='pill'>Aktiv</span></h2><div class='chip-row'><span class='chip'>");
+    h += mashChipIcon;
+    h += F("Maischen</span><span class='chip'><svg viewBox='0 0 24 24'><path d='M8 6h13'/><path d='M8 12h13'/><path d='M8 18h13'/><path d='M3 6h.01'/><path d='M3 12h.01'/><path d='M3 18h.01'/></svg>");
+    h += r.rasten;
+    h += r.rasten == 1 ? F(" Rast</span><span class='chip'>") : F(" Rasten</span><span class='chip'>");
+    h += hopIcon;
+    h += r.hopfenanzahl;
+    h += r.hopfenanzahl == 1 ? F(" Hopfengabe</span>") : F(" Hopfengaben</span>");
+    h += F("<span class='chip'><svg viewBox='0 0 24 24'><path d='M8 7h8'/><path d='M9 7v13h6V7'/><path d='M7 11h10'/><path d='M12 3v4'/></svg>Kochen ");
+    h += r.kochzeit;
+    h += F(" min</span></div></div><span class='icon-btn' aria-hidden='true'>"
+           "<svg viewBox='0 0 24 24'><path d='M12 5v.01'/><path d='M12 12v.01'/><path d='M12 19v.01'/></svg>"
+           "</span></div></article>");
+
+    h += F("<article class='card'><div class='recipe-timeline'>"
+           "<div class='timeline-row'><span class='timeline-icon mash'>");
+    h += mashIcon;
+    h += F("</span><span class='timeline-name'>Einmaischen</span><span class='timeline-temp'>");
     h += r.maischtemp;
-    h += F("&deg;C</span></div>");
+    h += F("&deg;C</span><span class='timeline-time'></span></div>");
 
     for (int i = 1; i <= r.rasten; i++) {
-        h += F("<div class='tl-row'><span class='tl-label'>");
+        h += F("<div class='timeline-row'><span class='timeline-icon'>");
         h += i;
-        h += F(". Rast ");
+        h += F("</span><span class='timeline-name'>");
+        h += i;
+        h += F(". Rast</span><span class='timeline-temp'>");
         h += r.rastTemp[i];
-        h += F("&deg;C</span><span class='tl-badge'>");
+        h += F("&deg;C</span><span class='timeline-time'>");
         h += r.rastZeit[i];
         h += F(" min</span></div>");
     }
 
-    h += F("<div class='tl-row tl-node'><span class='tl-label'>Abmaischen</span><span class='tl-badge'>");
+    h += F("<div class='timeline-row'><span class='timeline-icon mashout'>");
+    h += mashoutIcon;
+    h += F("</span><span class='timeline-name'>Abmaischen</span><span class='timeline-temp'>");
     h += r.endtemp;
-    h += F("&deg;C</span></div>"
-           "<div class='tl-row tl-boil'><span class='tl-label'>Kochen</span><span class='tl-badge'>");
+    h += F("&deg;C</span><span class='timeline-time'></span></div>"
+           "<div class='timeline-row'><span class='timeline-icon boil'>");
+    h += boilIcon;
+    h += F("</span><span class='timeline-name'>Kochen</span><span class='timeline-temp'></span><span class='timeline-time'>");
     h += r.kochzeit;
-    h += F(" min</span></div><div class='tl-hops'>");
+    h += F(" min</span></div>");
 
     for (int i = 1; i <= r.hopfenanzahl; i++) {
-        h += F("<span class='tl-hop'>");
+        h += F("<div class='timeline-row'><span class='timeline-icon hop'>");
+        h += hopIcon;
+        h += F("</span><span class='timeline-name'>");
         h += i;
         h += F(". nach ");
         h += r.hopfenZeit[i];
-        h += F(" min</span>");
+        h += F(" min</span><span class='timeline-temp'></span><span class='timeline-time'></span></div>");
     }
-    h += F("</div></div></div>");  // close tl-hops, tl, card
+
+    h += F("<div class='timeline-row'><span class='timeline-icon boil'>");
+    h += boilIcon;
+    h += F("</span><span class='timeline-name'>Kochende</span><span class='timeline-temp'></span><span class='timeline-time'>");
+    h += r.kochzeit;
+    h += F(" min</span></div>");
+    h += F("</div></article>");
 }
 
 static void handleRecipeGet() {
-    String h = pageHead("Rezept-Import");
+    String h = pageHead("Rezept", "Rezept");
     Recipe cur = currentRecipe();
     appendRecipeCard(h, cur);
     h += F("<form class='card' method='POST' action='/recipe' enctype='multipart/form-data'>"
-           "<label>Kleiner-Brauhelfer JSON oder BeerXML</label>"
+           "<div class='import-title'><svg viewBox='0 0 24 24'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/><path d='M12 18v-8'/><path d='M8 14l4-4 4 4'/></svg><span>Rezept importieren</span></div>"
+           "<label>JSON oder BeerXML</label>"
            "<input type='file' name='recipe' accept='.json,.xml'>"
-           "<button class='btn' type='submit'>Importieren</button></form>");
-    h += pageFoot();
+           "<button class='btn full' type='submit'>Importieren</button></form>");
+    h += pageFoot("Rezept");
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
 
@@ -479,17 +659,17 @@ static void handleRecipeDone() {
 
     if (!ok) {
         HTTP.send(400, "text/html; charset=utf-8",
-                  pageHead("Import fehlgeschlagen") +
+                  pageHead("Import fehlgeschlagen", "Rezept") +
                       F("<div class='card'>Kein g&uuml;ltiges Kleiner-Brauhelfer JSON oder BeerXML.</div>") +
-                      pageFoot());
+                      pageFoot("Rezept"));
         return;
     }
 
     applyRecipe(r);
     saveRecipe(r);
 
-    String h = pageHead("Importiert");
+    String h = pageHead("Importiert", "Rezept");
     appendRecipeCard(h, r);
-    h += pageFoot();
+    h += pageFoot("Rezept");
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
