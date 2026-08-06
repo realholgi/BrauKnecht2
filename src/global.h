@@ -40,6 +40,29 @@ inline bool isRufalarmMode(MODUS mode) {
     return mode == BRAUMEISTERRUFALARM || mode == BRAUMEISTERRUF;
 }
 
+inline const char *modeStatusName(MODUS mode) {
+    switch (mode) {
+        case HAUPTSCHIRM:
+            return "Bereit";
+        case MANUELL:
+            return "Manuelles Maischen";
+        case AUTO_START:
+        case AUTO_MAISCHTEMP:
+        case AUTO_RAST_TEMP:
+        case AUTO_RAST_ZEIT:
+        case AUTO_ENDTEMP:
+            return "Automatisches Maischen";
+        case BRAUMEISTERRUFALARM:
+        case BRAUMEISTERRUF:
+            return "Rufalarm";
+        case KOCHEN_AUFHEIZEN:
+        case KOCHEN_AUTO_LAUF:
+            return "Kochen";
+        default:
+            return "Einrichtung";
+    }
+}
+
 enum REGEL_MODE {
     REGL_AUS = 0,
     REGL_MAISCHEN,

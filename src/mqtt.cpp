@@ -5,6 +5,7 @@
 #include "mqtt.h"
 #include "settings.h"
 #include "global.h"
+#include "build_info.h"
 
 static WiFiClient espClient;
 static PubSubClient client(espClient);
@@ -29,7 +30,9 @@ void mqttSetup() {
 
 // One Home-Assistant MQTT-discovery config message (retained) per entity.
 static void publishConfig(const char *component, const char *key, const char *name,
-                          const char *unit, const char *devClass) {
+                          const char *unit, const char *devClass,
+                          const char *stateClass = nullptr,
+                          const char *entityCategory = nullptr) {
     char topic[100];
     snprintf(topic, sizeof(topic), "homeassistant/%s/%s/%s/config", component, nodeId, key);
 
@@ -50,11 +53,18 @@ static void publishConfig(const char *component, const char *key, const char *na
     if (devClass) {
         doc["dev_cla"] = devClass;
     }
+    if (stateClass) {
+        doc["stat_cla"] = stateClass;
+    }
+    if (entityCategory) {
+        doc["ent_cat"] = entityCategory;
+    }
     JsonObject dev = doc["dev"].to<JsonObject>();
     dev["ids"].to<JsonArray>().add(nodeId);
     dev["name"] = "BrauKnecht";
     dev["mdl"] = "BrauKnecht2";
     dev["mf"] = "realholgi";
+    dev["sw"] = firmwareVersion();
 
     char buf[512];
     size_t len = serializeJson(doc, buf, sizeof(buf));
@@ -66,6 +76,17 @@ static void publishDiscovery() {
     publishConfig("sensor", "sollwert", "Soll-Temperatur", "°C", "temperature");
     publishConfig("binary_sensor", "heizung", "Heizung", nullptr, "heat");
     publishConfig("sensor", "modus", "Modus", nullptr, nullptr);
+    publishConfig("sensor", "status", "Status", nullptr, nullptr);
+    publishConfig("binary_sensor", "aktiv", "Brauvorgang", nullptr, "running");
+    publishConfig("binary_sensor", "alarm", "Rufalarm", nullptr, nullptr);
+    publishConfig("binary_sensor", "sensorfehler", "Sensorfehler", nullptr, "problem");
+    publishConfig("sensor", "recipe_name", "Rezept", nullptr, nullptr);
+    publishConfig("sensor", "wifi_signal", "WLAN-Signal", "dBm", "signal_strength",
+                  "measurement", "diagnostic");
+    char obsoleteFirmwareConfigTopic[100];
+    snprintf(obsoleteFirmwareConfigTopic, sizeof(obsoleteFirmwareConfigTopic),
+             "homeassistant/sensor/%s/firmware_version/config", nodeId);
+    client.publish(obsoleteFirmwareConfigTopic, "", true);
 }
 
 static void publishState() {
@@ -74,8 +95,18 @@ static void publishState() {
     doc["sollwert"] = sollwert;
     doc["heizung"] = heizung ? "ON" : "OFF";
     doc["modus"] = static_cast<int>(modus);
+    doc["status"] = modeStatusName(modus);
 
-    char buf[128];
+    doc["aktiv"] = regelung != REGL_AUS ? "ON" : "OFF";
+    doc["alarm"] = isRufalarmMode(modus) ? "ON" : "OFF";
+    doc["sensorfehler"] = sensorfehler ? "ON" : "OFF";
+    doc["recipe_name"] = recipeName;
+    doc["wifi_signal"] = WiFi.RSSI();
+    char buf[512];
+    const size_t required = measureJson(doc);
+    if (required >= sizeof(buf)) {
+        return;
+    }
     size_t len = serializeJson(doc, buf, sizeof(buf));
     client.publish(stateTopic, reinterpret_cast<const uint8_t *>(buf), len);
 }

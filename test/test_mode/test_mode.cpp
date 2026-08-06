@@ -16,6 +16,15 @@ void test_non_alarm_modes_are_not_alarm(void) {
     TEST_ASSERT_FALSE(isRufalarmMode(AUTO_RAST_TEMP));
 }
 
+void test_mode_status_names_group_internal_states(void) {
+    TEST_ASSERT_EQUAL_STRING("Bereit", modeStatusName(HAUPTSCHIRM));
+    TEST_ASSERT_EQUAL_STRING("Manuelles Maischen", modeStatusName(MANUELL));
+    TEST_ASSERT_EQUAL_STRING("Automatisches Maischen", modeStatusName(AUTO_RAST_ZEIT));
+    TEST_ASSERT_EQUAL_STRING("Kochen", modeStatusName(KOCHEN_AUTO_LAUF));
+    TEST_ASSERT_EQUAL_STRING("Rufalarm", modeStatusName(BRAUMEISTERRUFALARM));
+    TEST_ASSERT_EQUAL_STRING("Einrichtung", modeStatusName(EINGABE_RAST_TEMP));
+}
+
 void test_mode_values_remain_published_contract(void) {
     TEST_ASSERT_EQUAL_INT(1, MANUELL);
     TEST_ASSERT_EQUAL_INT(3, SETUP_MENU);
@@ -28,5 +37,6 @@ int main(int, char **) {
     RUN_TEST(test_rufalarm_modes_are_alarm);
     RUN_TEST(test_non_alarm_modes_are_not_alarm);
     RUN_TEST(test_mode_values_remain_published_contract);
+    RUN_TEST(test_mode_status_names_group_internal_states);
     return UNITY_END();
 }
