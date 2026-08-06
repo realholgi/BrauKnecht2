@@ -21,10 +21,6 @@ void stateMachine() {
             funktion_temperatur();
             break;
 
-        case MANUELL_HALTEN:
-            regelung = REGL_MAISCHEN;
-            funktion_temperatur_halten();
-            break;
 
         case SETUP_MENU:
             funktion_setupmenu();

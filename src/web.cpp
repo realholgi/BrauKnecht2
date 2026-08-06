@@ -308,6 +308,11 @@ static void handleManualPost() {
         return;
     }
 
+    if (!canEnterManualMode(modus, regelung)) {
+        HTTP.send(409, "application/json;charset=utf-8", "{\"error\":\"manual_unavailable\"}");
+        return;
+    }
+
     int raw = sollwert;
     if (HTTP.hasArg("soll")) {
         raw = HTTP.arg("soll").toInt();

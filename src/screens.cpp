@@ -9,10 +9,12 @@
 #include "hardware.h"
 #include "statemachine.h"
 #include "persistence.h"
+#include "manual_control.h"
 #include "web.h"
 
 static int y = 1;                                    //Übergabewert von x für Braumeisterruf
 static int pause = 0;
+static ManualTargetBeepState manualTargetBeep;
 static unsigned long rufsignalzeit = 0;
 
 static void _next_koch_step();
@@ -271,6 +273,7 @@ void funktion_rezeptfrage(const char *titleP, MODUS startModus, MODUS editModus)
 void funktion_temperatur() {
     if (anfang) {
         lcd_clear();
+        armManualTargetBeep(manualTargetBeep, drehen);
         anfang = false;
     }
 
@@ -284,33 +287,20 @@ void funktion_temperatur() {
             break;
     }
 
-    if (modus == MANUELL && isttemp >= sollwert) { // Manuell -> Sollwert erreicht
-        //Alarm -----
-        if (millis() >= (altsekunden + 1000)) { //Blinken der Anzeige und RUF
-            print_lcdP(PSTR("   "), LEFT, 3);
-            beeperOnOff(false);
-            if (millis() >= (altsekunden + 1500)) {
-                altsekunden = millis();
-                pause++;
-            }
-        } else {
+    if (modus == MANUELL) {
+        const bool wasActive = manualTargetBeep.active;
+        const bool beepOn = updateManualTargetBeep(
+            manualTargetBeep, sollwert, isttemp, static_cast<uint32_t>(millis()));
+
+        beeperOnOff(beepOn);
+        if (beepOn) {
             print_lcdP(PSTR("RUF"), LEFT, 3);
-            if (pause <= 4) {
-                beeperOnOff(true);
-            }
-            if (pause > 8) {
-                pause = 0;
-            }
+        } else if (manualTargetBeep.active || wasActive) {
+            print_lcdP(PSTR("   "), LEFT, 3);
         }
-        warte_und_weiter(MANUELL_HALTEN);
     }
 }
 
-void funktion_temperatur_halten() {
-    sollwert = drehen;
-
-    // warte_und_weiter(ABBRUCH); // TODO will man das wirklich?
-}
 
 void funktion_rastanzahl() {
     static int presetApplied = 0;  // rest count whose preset template is loaded
