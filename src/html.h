@@ -312,7 +312,7 @@ function renderRecipe(d){
   addStep('boil', '', 'Kochende', '', Number(d.recipe_kochzeit || 0) + ' min', 'warm');
 }
 function renderDashboard(d){
-  const ist = Number(d.regelung) === 0 ? '--' : fmtTemp(d.temp_ist, 1);
+  const ist = fmtTemp(d.temp_ist, 1);
   const sollValue = clampSoll(d.temp_soll);
   const soll = fmtTemp(sollValue, 0);
   $('m_ist').textContent = ist;

@@ -14,6 +14,7 @@ constexpr unsigned long CONVERSION_MS = 750;  // 12-bit DS18B20 conversion time
 static unsigned long lastRequest = 0;
 
 void temperatureSetup() {
+    sensors.begin();
     sensors.getAddress(insideThermometer, 0);
     sensors.setResolution(insideThermometer, 12);
     sensors.setWaitForConversion(false);   // non-blocking: poll by elapsed time
