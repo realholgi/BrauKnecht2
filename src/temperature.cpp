@@ -17,7 +17,9 @@ void temperatureSetup() {
     sensors.begin();
     sensors.getAddress(insideThermometer, 0);
     sensors.setResolution(insideThermometer, 12);
-    sensors.setWaitForConversion(false);   // non-blocking: poll by elapsed time
+    // Parasite-powered DS18B20s need the library to keep the data line high
+    // throughout conversion; asynchronous requests release that power too soon.
+    sensors.setWaitForConversion(sensors.isParasitePowerMode());
     sensors.requestTemperatures();          // kick the first conversion
     lastRequest = millis();
 }
