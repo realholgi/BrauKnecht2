@@ -18,6 +18,11 @@ const char *ap_ssid = APSSID;
 
 ESP8266WebServer HTTP(80);
 
+constexpr unsigned long WIFI_AP_POLL_MS = 1000;
+static bool accessPointEnabled = false;
+static bool configuredStationConnectedKnown = false;
+static bool configuredStationConnected = false;
+
 void handle_http() {
     HTTP.handleClient();
     MDNS.update();
@@ -328,7 +333,7 @@ static void handleManualPost() {
 bool setupWIFI() {
     WiFi.mode(WIFI_AP_STA);
 
-    WiFi.softAP(ap_ssid);                       // always on, for first-time setup
+    accessPointEnabled = WiFi.softAP(ap_ssid);  // initial recovery AP
 
     if (strlen(settings.sta_ssid)) {            // join home network when configured
         WiFi.begin(settings.sta_ssid, settings.sta_pass);
@@ -345,6 +350,45 @@ bool setupWIFI() {
 #endif
 
     return false;
+}
+
+bool isAccessPointEnabled() {
+    return accessPointEnabled;
+}
+
+bool setAccessPointEnabled(bool enabled) {
+    if (accessPointEnabled == enabled) {
+        return true;
+    }
+
+    bool changed = enabled ? WiFi.softAP(ap_ssid) : WiFi.softAPdisconnect(true);
+    if (changed) {
+        accessPointEnabled = enabled;
+    }
+    return changed;
+}
+
+void serviceWiFiAp() {
+    static unsigned long lastPoll = 0;
+    unsigned long now = millis();
+    if (now - lastPoll < WIFI_AP_POLL_MS) {
+        return;
+    }
+    lastPoll = now;
+
+    bool connected = strlen(settings.sta_ssid) && WiFi.status() == WL_CONNECTED &&
+                     WiFi.SSID() == settings.sta_ssid;
+    if (!configuredStationConnectedKnown) {
+        if (setAccessPointEnabled(!connected)) {
+            configuredStationConnected = connected;
+            configuredStationConnectedKnown = true;
+        }
+        return;
+    }
+
+    if (connected != configuredStationConnected && setAccessPointEnabled(!connected)) {
+        configuredStationConnected = connected;
+    }
 }
 
 // Shared page shell: all generated pages use the same app shell as the static
@@ -427,7 +471,11 @@ static void appendDeviceInfoCard(String &h) {
     h += F("</span></li><li><span class='row-label'>IP</span><span class='row-value'>");
     h += WiFi.localIP().toString();
     h += F("</span></li><li><span class='row-label'>AP-IP</span><span class='row-value'>");
-    h += WiFi.softAPIP().toString();
+    if (isAccessPointEnabled()) {
+        h += WiFi.softAPIP().toString();
+    } else {
+        h += F("aus");
+    }
     h += F("</span></li>");
     if (strlen(settings.mqtt_host)) {
         h += F("<li><span class='row-label'>MQTT</span><span class='row-value'>");
@@ -488,7 +536,7 @@ static void handleConfigGet() {
            "<span>WLAN</span></div><div class='field-grid two'><div><label>SSID</label><select name='sta_ssid'>");
     h += opts;
     h += F("</select></div><div><label>Passwort</label><input name='sta_pass' type='password' placeholder='unver&auml;ndert'></div></div>"
-           "<p class='small'>AP bleibt offen: BrauKnecht</p></article>"
+           "<p class='small'>AP wird nach erfolgreicher WLAN-Verbindung automatisch ausgeschaltet und kann am Ger&auml;t unter Setup tempor&auml;r geschaltet werden.</p></article>"
            "<article class='card'><div class='section-title'>"
            "<svg viewBox='0 0 24 24'><circle cx='12' cy='5' r='2'/><circle cx='5' cy='19' r='2'/><circle cx='19' cy='19' r='2'/><path d='M12 7v4'/><path d='M12 11 5 17'/><path d='M12 11l7 6'/></svg>"
            "<span>MQTT</span></div><div class='field-grid three'><div><label>Host</label><input name='mqtt_host' value=\"");

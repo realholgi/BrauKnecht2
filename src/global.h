@@ -33,7 +33,8 @@ enum MODUS {
     // appended at the end so existing MODUS integer values (published over MQTT
     // and /data.json) stay stable:
     AUTOMATIK_FRAGE,        // Rezept-Chooser (Start/Bearbeiten) vor dem Maischen
-    KOCHEN_FRAGE            // Rezept-Chooser (Start/Bearbeiten) vor dem Kochen
+    KOCHEN_FRAGE,           // Rezept-Chooser (Start/Bearbeiten) vor dem Kochen
+    SETUP_AP
 };
 
 inline bool isRufalarmMode(MODUS mode) {

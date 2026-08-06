@@ -38,6 +38,10 @@ void stateMachine() {
             funktion_kochschwelle();
             break;
 
+        case SETUP_AP:
+            funktion_ap();
+            break;
+
         case ALARMTEST:
             regelung = REGL_AUS;
             rufmodus = HAUPTSCHIRM;
@@ -214,6 +218,7 @@ void goBackOneStep() {
             break;
         case SETUP_HYSTERESE:
         case SETUP_KOCHSCHWELLE:
+        case SETUP_AP:
             modus = SETUP_MENU;
             break;
 

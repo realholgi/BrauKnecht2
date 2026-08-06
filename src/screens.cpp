@@ -9,6 +9,7 @@
 #include "hardware.h"
 #include "statemachine.h"
 #include "persistence.h"
+#include "web.h"
 
 static int y = 1;                                    //Übergabewert von x für Braumeisterruf
 static int pause = 0;
@@ -222,9 +223,10 @@ void funktion_setupmenu() {
         anfang = false;
         print_lcdP(PSTR("Kochschwelle"), 1, 0);
         print_lcdP(PSTR("Hysterese"), 1, 1);
+        print_lcdP(PSTR("AP ein/aus"), 1, 2);
     }
 
-    drehen = constrain(drehen, 0, 1);
+    drehen = constrain(drehen, 0, 2);
 
     menu_zeiger(drehen);
     switch (drehen) {
@@ -233,6 +235,9 @@ void funktion_setupmenu() {
             break;
         case 1:
             rufmodus = SETUP_HYSTERESE;
+            break;
+        case 2:
+            rufmodus = SETUP_AP;
             break;
         default:
             rufmodus = ABBRUCH;
@@ -696,6 +701,24 @@ void funktion_hysterese() {
     if (warte_und_weiter(SETUP_MENU)) {
         hysterese = hysteresespeicher / 10;
         writeEepromData();
+    }
+}
+
+void funktion_ap() {
+    if (anfang) {
+        lcd_clear();
+        anfang = false;
+        print_lcdP(PSTR("AP ein/aus"), LEFT, 0);
+        print_lcdP(PSTR("Eingabe"), RIGHT, 0);
+
+        drehen = isAccessPointEnabled() ? 1 : 0;
+    }
+
+    drehen = constrain(drehen, 0, 1);
+    print_lcdP(drehen ? PSTR("ein") : PSTR("aus"), RIGHT, 1);
+
+    if (warte_und_weiter(SETUP_MENU)) {
+        setAccessPointEnabled(drehen == 1);
     }
 }
 

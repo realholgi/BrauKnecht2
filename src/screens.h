@@ -21,6 +21,7 @@ void funktion_braumeisterrufalarm();
 void funktion_braumeisterruf();
 void funktion_hysterese();
 void funktion_kochschwelle();
+void funktion_ap();
 void funktion_kochzeit();
 void funktion_anzahlhopfengaben();
 void funktion_hopfengaben();

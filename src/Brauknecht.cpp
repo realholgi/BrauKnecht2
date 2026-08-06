@@ -136,6 +136,7 @@ void setup() {
 //loop=============================================================
 void loop() {
     ArduinoOTA.handle();
+    serviceWiFiAp();
     handle_http();
     mqttLoop();
 

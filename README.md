@@ -109,13 +109,16 @@ fields are also exposed as `firmware_version`, `build_hash`, `build_time` and
 
 ## WiFi & web access
 
-The device always runs its own open access point, and additionally joins your
-home network once configured (`/config`):
+The device starts its own open access point for initial and recovery access, and
+also joins your configured home network (`/config`):
 
 - AP SSID: `BrauKnecht`
 
-Connect to the AP (or reach it on your LAN once joined) and open
-**http://bk.local/** for the web app. Navigation order is the same on desktop
+After the configured WLAN connection succeeds, the device AP closes and returns
+when that connection is lost. LCD **Setup → AP ein/aus** temporarily changes the
+current AP state until the next station connection transition or reboot. Use the
+AP only while it is available, or use the configured LAN address / **http://bk.local/**
+after the device joins your network. Navigation order is the same on desktop
 and mobile:
 
 - **Dashboard** (`/`) — active recipe timeline, live status and manual setpoint
