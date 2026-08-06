@@ -82,7 +82,7 @@ static void publishState() {
 
 static void reconnect() {
     const char *user = strlen(settings.mqtt_user) ? settings.mqtt_user : nullptr;
-    const char *pass = strlen(settings.mqtt_user) ? settings.mqtt_pass : nullptr;
+    const char *pass = strlen(settings.mqtt_pass) ? settings.mqtt_pass : nullptr;
     // Last-Will: broker publishes "offline" if we drop, so HA marks us away.
     bool ok = client.connect(nodeId, user, pass, availTopic, 0, true, "offline");
     if (ok) {
