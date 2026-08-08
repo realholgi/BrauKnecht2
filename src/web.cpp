@@ -9,6 +9,7 @@
 #include "html.h"
 #include "web.h"
 #include "settings.h"
+#include "persistence.h"
 #include "recipe.h"
 #include "input.h"
 #include "manual_control.h"
@@ -35,6 +36,7 @@ static void handleRecipeDone();
 static void handleRecipeUpload();
 static void handleHistory();
 static void handleManualPost();
+static void handleAccessPointPost();
 
 void setupWebserver() {
     HTTP.collectHeaders("X-BrauKnecht-Action");
@@ -54,6 +56,7 @@ void setupWebserver() {
     HTTP.on("/recipe", HTTP_GET, handleRecipeGet);
     HTTP.on("/recipe", HTTP_POST, handleRecipeDone, handleRecipeUpload);
     HTTP.on("/manual", HTTP_POST, handleManualPost);
+    HTTP.on("/access-point", HTTP_POST, handleAccessPointPost);
 
     HTTP.onNotFound(handleNotFound);
     HTTP.begin();
@@ -541,7 +544,7 @@ static void handleConfigGet() {
            "<span>WLAN</span></div><div class='field-grid two'><div><label>SSID</label><select name='sta_ssid'>");
     h += opts;
     h += F("</select></div><div><label>Passwort</label><input name='sta_pass' type='password' placeholder='unver&auml;ndert'></div></div>"
-           "<p class='small'>AP wird nach erfolgreicher WLAN-Verbindung automatisch ausgeschaltet und kann am Ger&auml;t unter Setup tempor&auml;r geschaltet werden.</p></article>"
+           "<p class='small'>AP wird nach erfolgreicher WLAN-Verbindung automatisch ausgeschaltet und kann am Ger&auml;t oder hier tempor&auml;r geschaltet werden.</p></article>"
            "<article class='card'><div class='section-title'>"
            "<svg viewBox='0 0 24 24'><circle cx='12' cy='5' r='2'/><circle cx='5' cy='19' r='2'/><circle cx='19' cy='19' r='2'/><path d='M12 7v4'/><path d='M12 11 5 17'/><path d='M12 11l7 6'/></svg>"
            "<span>MQTT</span></div><div class='field-grid three'><div><label>Host</label><input name='mqtt_host' value=\"");
@@ -550,14 +553,43 @@ static void handleConfigGet() {
     h += settings.mqtt_port;
     h += F("'></div><div><label>User</label><input name='mqtt_user' value=\"");
     h += htmlEscape(settings.mqtt_user);
-    h += F("\"></div></div><label>Passwort</label><input name='mqtt_pass' type='password' placeholder='unver&auml;ndert'></article>");
+    h += F("</div><label>Passwort</label><input name='mqtt_pass' type='password' placeholder='unver&auml;ndert'></article>"
+           "<article class='card'><div class='section-title'>"
+           "<svg viewBox='0 0 24 24'><path d='M12 3v18'/><path d='M5 7h14'/><path d='M5 17h14'/><path d='M7 3h10v18H7z'/></svg>"
+           "<span>Brauen</span></div><label>Kochschwelle (&deg;C)</label><input name='kschwelle' type='number' inputmode='numeric' min='20' max='99' value='");
+    h += kschwelle;
+    h += F("'><p class='small'>Die Kochschwelle entspricht der Einstellung unter Setup am Ger&auml;t.</p>"
+           "<div class='section-title'><span>Access Point</span></div><p class='small'>Aktuell ");
+    h += isAccessPointEnabled() ? F("eingeschaltet.") : F("ausgeschaltet.");
+    h += F("</p><button class='btn full' type='submit' formaction='/access-point' name='access_point' value='");
+    h += isAccessPointEnabled() ? F("off'>Access Point ausschalten") : F("on'>Access Point einschalten");
+    h += F("</button></article>");
     appendDeviceInfoCard(h);
     h += F("<div class='settings-actions'><button class='btn full' type='submit'>Speichern &amp; Neustart</button></div></form>");
     h += pageFoot("Einstellungen");
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
 
+static void handleAccessPointPost() {
+    const String requested = HTTP.arg("access_point");
+    if (requested != F("on") && requested != F("off")) {
+        HTTP.send(400, "text/plain; charset=utf-8", "Ungültige Access-Point-Einstellung");
+        return;
+    }
+
+    if (!setAccessPointEnabled(requested == F("on"))) {
+        HTTP.send(503, "text/plain; charset=utf-8", "Access Point konnte nicht geändert werden");
+        return;
+    }
+
+    HTTP.sendHeader("Location", "/config");
+    HTTP.send(303, "text/plain", "");
+}
+
 static void handleConfigPost() {
+    int requestedKochschwelle = HTTP.arg("kschwelle").toInt();
+    kschwelle = static_cast<uint8_t>(constrain(requestedKochschwelle, 20, 99));
+    writeEepromData();
     strlcpy(settings.sta_ssid, HTTP.arg("sta_ssid").c_str(), sizeof(settings.sta_ssid));
     strlcpy(settings.mqtt_host, HTTP.arg("mqtt_host").c_str(), sizeof(settings.mqtt_host));
     strlcpy(settings.mqtt_user, HTTP.arg("mqtt_user").c_str(), sizeof(settings.mqtt_user));
