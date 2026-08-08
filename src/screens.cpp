@@ -11,6 +11,7 @@
 #include "persistence.h"
 #include "manual_control.h"
 #include "web.h"
+#include "mqtt.h"
 
 static int y = 1;                                    //Übergabewert von x für Braumeisterruf
 static int pause = 0;
@@ -18,6 +19,11 @@ static ManualTargetBeepState manualTargetBeep;
 static unsigned long rufsignalzeit = 0;
 
 static void _next_koch_step();
+void enterBraumeisterRufalarm() {
+    mqttPublishRufalarm();
+    modus = BRAUMEISTERRUFALARM;
+}
+
 
 // ---- enriched recipe input rendering -------------------------------------
 // These render the whole mash/boil plan on the 20x4 LCD with a '>' cursor on
@@ -477,7 +483,7 @@ void funktion_maischtemperaturautomatik() {
         rufmodus = AUTO_RAST_TEMP;
         y = 0;
         braumeister[y] = BM_ALARM_WAIT;
-        modus = BRAUMEISTERRUFALARM;
+        enterBraumeisterRufalarm();
     }
 }
 
@@ -563,7 +569,7 @@ void funktion_zeitautomatik() {
 
         if (braumeister[y] != BM_ALARM_AUS) {
             rufmodus = modus;
-            modus = BRAUMEISTERRUFALARM;
+            enterBraumeisterRufalarm();
         }
     }
 }
@@ -584,7 +590,7 @@ void funktion_endtempautomatik() {
 
     if (isttemp >= sollwert) {
         rufmodus = ABBRUCH;
-        modus = BRAUMEISTERRUFALARM;
+        enterBraumeisterRufalarm();
         regelung = REGL_AUS;
         heizung = false;
         y = 0;
@@ -869,7 +875,7 @@ void funktion_hopfenzeitautomatik() {
 
     if (minuten >= kochzeit) {   //Kochzeitende
         rufmodus = ABBRUCH;
-        modus = BRAUMEISTERRUFALARM;
+        enterBraumeisterRufalarm();
         regelung = REGL_AUS;
         heizung = false;
         y = 0;

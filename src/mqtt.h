@@ -2,3 +2,4 @@
 
 void mqttSetup();
 void mqttLoop();
+void mqttPublishRufalarm();

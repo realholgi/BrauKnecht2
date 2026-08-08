@@ -2,6 +2,7 @@
 
 #include "global.h"
 
+void enterBraumeisterRufalarm();
 void funktion_hauptschirm();
 void funktion_setupmenu();
 void funktion_rezeptfrage(const char *titleP, MODUS startModus, MODUS editModus);

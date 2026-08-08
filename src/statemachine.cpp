@@ -38,7 +38,7 @@ void stateMachine() {
         case ALARMTEST:
             regelung = REGL_AUS;
             rufmodus = HAUPTSCHIRM;
-            modus = BRAUMEISTERRUFALARM;
+            enterBraumeisterRufalarm();
             print_lcdP(PSTR("Alarmtest"), RIGHT, 0);
             break;
 

@@ -18,6 +18,7 @@
 #include "recipe.h"
 #include "build_info.h"
 #include "temperature_control.h"
+#include "screens.h"
 
 void watchdogSetup();
 
@@ -158,7 +159,7 @@ void loop() {
                 regelung = REGL_AUS;
                 heizung = false;
                 sensorfehler = true;
-                modus = BRAUMEISTERRUFALARM;
+                enterBraumeisterRufalarm();
             }
         } else {
             sensorfehler = false;

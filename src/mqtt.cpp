@@ -13,6 +13,7 @@ static PubSubClient client(espClient);
 static char nodeId[20];          // brauknecht_aabbcc
 static char stateTopic[40];      // brauknecht/<nodeId>/state
 static char availTopic[44];      // brauknecht/<nodeId>/availability
+static char rufalarmTopic[43];   // brauknecht/<nodeId>/rufalarm
 static unsigned long lastPublish = 0;
 static unsigned long lastReconnect = 0;
 
@@ -23,6 +24,7 @@ void mqttSetup() {
     snprintf(nodeId, sizeof(nodeId), "brauknecht_%06x", ESP.getChipId());
     snprintf(stateTopic, sizeof(stateTopic), "brauknecht/%s/state", nodeId);
     snprintf(availTopic, sizeof(availTopic), "brauknecht/%s/availability", nodeId);
+    snprintf(rufalarmTopic, sizeof(rufalarmTopic), "brauknecht/%s/rufalarm", nodeId);
     client.setBufferSize(512);   // HA discovery payloads exceed the 256-byte default
     client.setSocketTimeout(1);  // keep a failed connect well under the 2s watchdog
     client.setServer(settings.mqtt_host, settings.mqtt_port);
@@ -109,6 +111,14 @@ static void publishState() {
     }
     size_t len = serializeJson(doc, buf, sizeof(buf));
     client.publish(stateTopic, reinterpret_cast<const uint8_t *>(buf), len);
+}
+
+void mqttPublishRufalarm() {
+    if (!client.connected()) {
+        return;
+    }
+
+    client.publish(rufalarmTopic, "Rufalarm", false);
 }
 
 static void reconnect() {

@@ -52,6 +52,8 @@ https://holgi.beer/tags/brau-ger%C3%A4tschaft/
 - **MQTT / Home Assistant** — publishes temperature, setpoint, heater and mode
   with Home Assistant auto-discovery (read-only), including an availability
   topic so HA shows the controller offline when it's powered down.
+  See [iPhone Rufalarm notifications](docs/home-assistant-iphone-rufalarm.md) for
+  a discrete MQTT alarm event and Companion-app automation setup.
 - **Versioned OTA updates** — firmware version comes from root `VERSION`;
   each PlatformIO build embeds Git hash, build time and environment.
 - The boil threshold persists in EEPROM; adaptive mash-controller learning is
