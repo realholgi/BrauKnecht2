@@ -44,9 +44,6 @@ bool saveSettings(const Settings &s) {
 void readEepromData() {
     EEPROM.begin(512);
 
-    hysteresespeicher = EEPROM.read(HYSTERESE_MEM);
-    if (hysteresespeicher > 40 || hysteresespeicher == 0) { hysteresespeicher = HYSTERESE_DEFAULT; };
-    hysterese = hysteresespeicher / 10;
 
     kschwelle = EEPROM.read(KOCHSCHWELLE_MEM);
     if (kschwelle > 100 || kschwelle == 0) { kschwelle = KOCHSCHWELLE_DEFAULT; };
@@ -56,7 +53,6 @@ void writeEepromData() {
     EncoderTimerGuard guard;  // pause timer1 ISR during the EEPROM (flash) commit
     EEPROM.begin(512);
 
-    EEPROM.write(HYSTERESE_MEM, hysteresespeicher);
     EEPROM.write(KOCHSCHWELLE_MEM, kschwelle);
     EEPROM.commit();
 }

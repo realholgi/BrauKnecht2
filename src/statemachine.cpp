@@ -26,9 +26,6 @@ void stateMachine() {
             funktion_setupmenu();
             break;
 
-        case SETUP_HYSTERESE:
-            funktion_hysterese();
-            break;
 
         case SETUP_KOCHSCHWELLE:
             funktion_kochschwelle();
@@ -212,7 +209,6 @@ void goBackOneStep() {
         case SETUP_MENU:
             modus = HAUPTSCHIRM;
             break;
-        case SETUP_HYSTERESE:
         case SETUP_KOCHSCHWELLE:
         case SETUP_AP:
             modus = SETUP_MENU;

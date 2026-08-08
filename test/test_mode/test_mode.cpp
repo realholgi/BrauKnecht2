@@ -28,6 +28,7 @@ void test_mode_status_names_group_internal_states(void) {
 void test_mode_values_remain_published_contract(void) {
     TEST_ASSERT_EQUAL_INT(1, MANUELL);
     TEST_ASSERT_EQUAL_INT(3, SETUP_MENU);
+    TEST_ASSERT_EQUAL_INT(5, SETUP_KOCHSCHWELLE);
     TEST_ASSERT_EQUAL_INT(16, BRAUMEISTERRUFALARM);
     TEST_ASSERT_EQUAL_INT(28, SETUP_AP);
 }

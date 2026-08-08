@@ -1,4 +1,3 @@
-#pragma GCC diagnostic ignored "-Wsign-compare"  // millis() vs signed wartezeit timing
 
 #include <Arduino.h>
 #include <TimeLib.h>
@@ -18,6 +17,7 @@
 #include "mqtt.h"
 #include "recipe.h"
 #include "build_info.h"
+#include "temperature_control.h"
 
 void watchdogSetup();
 
@@ -32,9 +32,7 @@ bool anfang = true;
 unsigned long altsekunden;
 REGEL_MODE regelung = REGL_AUS;
 bool sensorfehler = false;
-float hysterese;
-uint8_t hysteresespeicher = HYSTERESE_DEFAULT;
-long wartezeit = -60000;
+static TemperatureControlState temperatureControl;
 int n = 0;                                            //Counter Messungserhöhung zur Fehlervermeidung
 uint8_t kschwelle = KOCHSCHWELLE_DEFAULT;
 bool einmaldruck = false;
@@ -185,7 +183,7 @@ void loop() {
     }
 
     // Heizregelung
-    if (regelung == REGL_MAISCHEN) {
+    if (regelung == REGL_MAISCHEN && !sensorfehler) {
         static int lastSoll = -1000;
         if (overlaysDirty || sollwert != lastSoll) {
             lastSoll = sollwert;
@@ -194,55 +192,14 @@ void loop() {
             print_lcd_deg(19, 1);
         }
 
-        /*
-          Regelung beim Hochfahren: Heizung schaltet 0,5°C vor Sollwert aus
-          nach einer Wartezeit schaltet es dann um auf hysteresefreie Regelung
-          beim Umschalten zwischen ein und aus,
-          D.h. nach dem Umschalten ist ein weiteres Schalten für 1 min gesperrt.
-          Ausnahme ist die Überschreitung des Sollwertes um 0,5°C.
-          Dann wird sofort ausgschaltet.
-          Es soll dadurch das Relaisrattern durch Springen
-          der Temperatur am Schaltpunkt verhindern.
-        */
-
-        // setzt Hysterese beim Hochfahren auf 0.5°C unter sollwert
-        if ((isttemp <= (sollwert - 4)) && (heizung == 1)) {
-            hysterese = hysteresespeicher;
-            hysterese = hysterese / 10;
-        }
-
-        // Ausschalten wenn Sollwert-Hysterese erreicht und dann Wartezeit
-        if (heizung && (isttemp >= (sollwert - hysterese)) && (millis() >= (wartezeit + 60000))) {
-            heizung = false;
-            hysterese = 0;
-            wartezeit = millis();
-        }
-
-        // Einschalten wenn kleiner Sollwert und dann Wartezeit
-        if ((!heizung) && (isttemp <= (sollwert - 0.5)) && (millis() >= (wartezeit + 60000))) {
-            heizung = true;
-            hysterese = 0;
-            wartezeit = millis();
-        }
-
-        // Ausschalten vor der Wartezeit, wenn Sollwert um 0,5 überschritten
-        if (heizung && (isttemp >= (sollwert + 0.5))) {
-            heizung = false;
-            hysterese = 0;
-            wartezeit = millis();
-        }
-
-        // Wenn 3 Grad unter soll, dann alles egal und Heizung an
-        if ((!heizung) && (isttemp <= (sollwert - 3))) {
-            heizung = true;
-            hysterese = 0;
-            wartezeit = millis();
-        }
-    }
-
-    //Kochen => dauernd ein----------------------------------------------
-    if (regelung == REGL_KOCHEN) {
+        heizung = updateTemperatureControl(
+            temperatureControl, isttemp, sollwert, static_cast<uint32_t>(millis()));
+    } else if (regelung == REGL_KOCHEN) {
+        resetTemperatureControl(temperatureControl);
         heizung = true;
+    } else {
+        resetTemperatureControl(temperatureControl);
+        heizung = false;
     }
 
     // Heizanzeige nur beim Brauen; sonst gehört Zeile 3 / Spalte 0 dem

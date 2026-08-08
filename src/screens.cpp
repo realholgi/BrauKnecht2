@@ -224,27 +224,13 @@ void funktion_setupmenu() {
         drehen = 0;
         anfang = false;
         print_lcdP(PSTR("Kochschwelle"), 1, 0);
-        print_lcdP(PSTR("Hysterese"), 1, 1);
-        print_lcdP(PSTR("AP ein/aus"), 1, 2);
+        print_lcdP(PSTR("AP ein/aus"), 1, 1);
     }
 
-    drehen = constrain(drehen, 0, 2);
+    drehen = constrain(drehen, 0, 1);
 
     menu_zeiger(drehen);
-    switch (drehen) {
-        case 0:
-            rufmodus = SETUP_KOCHSCHWELLE;
-            break;
-        case 1:
-            rufmodus = SETUP_HYSTERESE;
-            break;
-        case 2:
-            rufmodus = SETUP_AP;
-            break;
-        default:
-            rufmodus = ABBRUCH;
-            break;
-    }
+    rufmodus = drehen == 0 ? SETUP_KOCHSCHWELLE : SETUP_AP;
 
     if (warte_und_weiter(rufmodus)) {
         lcd_clear();
@@ -504,8 +490,6 @@ void funktion_tempautomatik() {
         printNumI_lcd(x, 13, 0);
         print_lcdP(PSTR(". Rast"), RIGHT, 0);
 
-        heizung = true;
-        //wartezeit = millis() + 60000;  // sofort aufheizen
     }
 
     drehen = constrain(drehen, 10, 105);
@@ -523,7 +507,6 @@ void funktion_zeitautomatik() {
     // Zeitzählung-Init (einmalig)
     if (anfang) {
         drehen = rastZeit[x];
-        heizung = true;  //wartezeit = millis() + 60000;  // sofort aufheizen
 
         print_lcdP(PSTR("Set Time"), LEFT, 3);
         setTime(00, 00, 00, 00, 01, 01); // Sekunden auf 0 stellen
@@ -593,8 +576,6 @@ void funktion_endtempautomatik() {
         print_lcdP(PSTR("Auto"), LEFT, 0);
         print_lcdP(PSTR("Endtemp"), RIGHT, 0);
 
-        //wartezeit = millis() + 60000;  // sofort aufheizen
-        heizung = true;
     }
 
     drehen = constrain(drehen, 10, 105);
@@ -673,26 +654,6 @@ void funktion_braumeisterruf() {
     }
 }
 
-void funktion_hysterese() {
-    if (anfang) {
-        lcd_clear();
-        anfang = false;
-        print_lcdP(PSTR("Hysterese"), LEFT, 0);
-        print_lcdP(PSTR("Eingabe"), RIGHT, 0);
-
-        drehen = hysteresespeicher;
-    }
-
-    drehen = constrain(drehen, 0, 40); //max. 4,0 Sekunden Hysterese
-    hysteresespeicher = static_cast<uint8_t>(drehen);
-
-    printNumF_lcd(float(hysteresespeicher) / 10, RIGHT, 1);
-
-    if (warte_und_weiter(SETUP_MENU)) {
-        hysterese = hysteresespeicher / 10;
-        writeEepromData();
-    }
-}
 
 void funktion_ap() {
     if (anfang) {
@@ -926,7 +887,6 @@ static void _next_koch_step() {
 void funktion_abbruch() {
     regelung = REGL_AUS;
     heizung = false;
-    wartezeit = -60000;
     heizungOnOff(false);
     beeperOnOff(false);
     anfang = true;

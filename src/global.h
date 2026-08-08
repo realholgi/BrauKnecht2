@@ -6,8 +6,7 @@ enum MODUS {
     HAUPTSCHIRM = 0,
     MANUELL,
     SETUP_MENU = 3,
-    SETUP_HYSTERESE,
-    SETUP_KOCHSCHWELLE,
+    SETUP_KOCHSCHWELLE = 5,
     EINGABE_RAST_ANZ,
     AUTOMATIK = EINGABE_RAST_ANZ,
     EINGABE_MAISCHTEMP,
@@ -76,10 +75,8 @@ enum BM_ALARM_MODE {
     BM_ALARM_MAX = BM_ALARM_SIGNAL
 };
 
-constexpr int HYSTERESE_MEM = 0;
-constexpr int HYSTERESE_DEFAULT = 5;
-
 constexpr int KOCHSCHWELLE_DEFAULT = 98;
+
 constexpr int KOCHSCHWELLE_MEM = 25;
 
 constexpr int HENDI_MAX_RUNTIME = 85;
@@ -117,9 +114,6 @@ extern volatile int drehen;
 extern bool anfang;
 extern unsigned long altsekunden;
 extern bool sensorfehler;
-extern float hysterese;
-extern uint8_t hysteresespeicher;
-extern long wartezeit;
 extern int n;
 extern uint8_t kschwelle;
 extern bool einmaldruck;

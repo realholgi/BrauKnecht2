@@ -22,6 +22,8 @@ https://holgi.beer/tags/brau-ger%C3%A4tschaft/
 ### Architecture notes
 
 - Hardware-coupled behavior belongs behind small seams so host-side tests can exercise pure logic with `pio test -e native`.
+- Mash heating uses a hardware-free adaptive controller so its relay decisions
+  can be exercised with deterministic temperature and time inputs.
 - Web routes must keep state-changing actions explicit and same-origin guarded.
 - Build/version metadata flows from `VERSION` through `scripts/generate_build_info.py` into `src/build_info.h` fallbacks and generated build files.
 
@@ -32,9 +34,13 @@ https://holgi.beer/tags/brau-ger%C3%A4tschaft/
 - **Manual mashing** — set the target temperature live with the rotary encoder
   or from the web dashboard (`10-100 °C`).
 - **Boil mode** — boil timer with multiple hop-addition reminders.
-- **Hysteresis temperature control** with safety features: sensor-error detection,
-  overshoot cutoff, relay anti-chatter lockout, and a watchdog.
-- **Local UI** — 20x4 LCD and rotary encoder (click to select, hold to abort).
+- **Adaptive mash temperature control** — learns the positive heating rate and
+  residual thermal lag to predict the cutoff point for different batch thermal
+  masses. It keeps a five-second minimum predictive on-time, a 60-second normal
+  relay-off dwell, immediate hard-overtemperature shutdown, and sensor-fault,
+  abort, and inactive-regulation shutdown.
+- **Local UI** — 20x4 LCD and rotary encoder (click to select, hold to abort);
+  Setup contains only **Kochschwelle** and **AP ein/aus**.
 - **Web app** — dashboard, history, recipe and settings pages over WiFi,
   backed by a `/data.json` endpoint. No external dependencies.
 - **Browser-local history** (`/history`) — plots the active recipe setpoint
@@ -48,7 +54,8 @@ https://holgi.beer/tags/brau-ger%C3%A4tschaft/
   topic so HA shows the controller offline when it's powered down.
 - **Versioned OTA updates** — firmware version comes from root `VERSION`;
   each PlatformIO build embeds Git hash, build time and environment.
-- Hysteresis and boil threshold persist in EEPROM.
+- The boil threshold persists in EEPROM; adaptive mash-controller learning is
+  intentionally reset for each heating session.
 
 ## Hardware
 
@@ -81,6 +88,7 @@ pio run -t upload             # build and flash over USB
 pio run -e d1_mini_debug -t upload   # flash with serial debug on 115200
 pio run -e d1_mini_ota -t upload     # flash over WiFi (board reachable at bk.local)
 pio test -e native            # run host-side unit tests
+pio test -e native -f test_temperature_control  # run adaptive-controller tests
 pio check                     # static analysis (cppcheck)
 ```
 

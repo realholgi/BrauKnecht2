@@ -18,7 +18,6 @@ void funktion_zeitautomatik();
 void funktion_endtempautomatik();
 void funktion_braumeisterrufalarm();
 void funktion_braumeisterruf();
-void funktion_hysterese();
 void funktion_kochschwelle();
 void funktion_ap();
 void funktion_kochzeit();
