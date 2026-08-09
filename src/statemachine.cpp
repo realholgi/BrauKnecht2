@@ -38,7 +38,7 @@ void stateMachine() {
         case ALARMTEST:
             regelung = REGL_AUS;
             rufmodus = HAUPTSCHIRM;
-            enterBraumeisterRufalarm();
+            enterBraumeisterRufalarm(RUFALARM_REASON_ALARMTEST);
             print_lcdP(PSTR("Alarmtest"), RIGHT, 0);
             break;
 
@@ -146,6 +146,12 @@ void stateMachine() {
             funktion_hopfenzeitautomatik();
             break;
 
+        case BRAUVORGANG_HALT:
+            regelung = holdReturnModus == KOCHEN_AUTO_LAUF || holdReturnModus == KOCHEN_AUFHEIZEN
+                ? REGL_KOCHEN : REGL_MAISCHEN;
+            funktion_brauvorgang_halt();
+            break;
+
         case ABBRUCH:
             funktion_abbruch();
             break;
@@ -158,6 +164,8 @@ void stateMachine() {
 // keeps its stop-and-abort meaning (see getButton()).
 void goBackOneStep() {
     switch (modus) {
+        case BRAUVORGANG_HALT:
+            return;
         case AUTOMATIK_FRAGE:
         case KOCHEN_FRAGE:
             modus = HAUPTSCHIRM;

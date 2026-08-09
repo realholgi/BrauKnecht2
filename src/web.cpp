@@ -14,6 +14,7 @@
 #include "input.h"
 #include "manual_control.h"
 #include "build_info.h"
+#include "brew_status.h"
 
 const char *ap_ssid = APSSID;
 
@@ -256,6 +257,33 @@ void handleDataJson() {
     json["rufmodus"] = static_cast<int>(rufmodus);
     json["alarm"] = isRufalarmMode(modus);
     json["regelung"] = static_cast<int>(regelung);
+
+    const bool hold = modus == BRAUVORGANG_HALT;
+    const unsigned long elapsedSeconds = hold
+        ? holdElapsedSeconds
+        : static_cast<unsigned long>(minuten) * 60UL + static_cast<unsigned long>(sekunden);
+    const BrewStatus activeStep = brewStatus({
+        modus, holdReturnModus, x, holdReturnX, rasten, hopfenanzahl,
+        rastZeit, kochzeit, elapsedSeconds, hold
+    });
+    if (activeStep.activeStepIndex >= 0) {
+        json["active_step_index"] = activeStep.activeStepIndex;
+        json["active_step_label"] = activeStep.activeStepLabel;
+        json["active_step_elapsed_seconds"] = activeStep.elapsedSeconds;
+        json["active_step_total_seconds"] = activeStep.totalSeconds;
+        json["active_step_remaining_seconds"] = activeStep.remainingSeconds;
+    } else {
+        json["active_step_index"] = nullptr;
+        json["active_step_label"] = nullptr;
+        json["active_step_elapsed_seconds"] = nullptr;
+        json["active_step_total_seconds"] = nullptr;
+        json["active_step_remaining_seconds"] = nullptr;
+    }
+    json["active_step_timed"] = activeStep.timed;
+    json["hold"] = hold;
+    json["alarm_reason"] = rufalarmReasonName(
+        isRufalarmMode(modus) ? rufalarmReason : RUFALARM_REASON_NONE);
+    json["alarm_action"] = rufalarmActionName(rufalarmReason, isRufalarmMode(modus));
 
     json["maischtemp"] = maischtemp;
     json["rast_anzahl"] = rasten;

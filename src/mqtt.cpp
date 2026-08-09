@@ -101,6 +101,8 @@ static void publishState() {
 
     doc["aktiv"] = regelung != REGL_AUS ? "ON" : "OFF";
     doc["alarm"] = isRufalarmMode(modus) ? "ON" : "OFF";
+    doc["alarm_reason"] = rufalarmReasonName(
+        isRufalarmMode(modus) ? rufalarmReason : RUFALARM_REASON_NONE);
     doc["sensorfehler"] = sensorfehler ? "ON" : "OFF";
     doc["recipe_name"] = recipeName;
     doc["wifi_signal"] = WiFi.RSSI();
@@ -118,7 +120,7 @@ void mqttPublishRufalarm() {
         return;
     }
 
-    client.publish(rufalarmTopic, "Rufalarm", false);
+    client.publish(rufalarmTopic, rufalarmReasonName(rufalarmReason), false);
 }
 
 static void reconnect() {

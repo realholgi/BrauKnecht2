@@ -44,7 +44,19 @@ bool getButton() {
     ClickEncoder::Button b = encoder1.getButton();
     switch (b) {
         case ClickEncoder::Held:
-            modus = ABBRUCH;       // long-press: stop / back to main menu
+            if ((regelung == REGL_MAISCHEN || regelung == REGL_KOCHEN) && brewIsActive(modus)) {
+                holdReturnModus = modus;
+                holdReturnX = x;
+                holdTarget = sollwert;
+                holdElapsedSeconds = (modus == AUTO_RAST_ZEIT || modus == KOCHEN_AUTO_LAUF)
+                    ? static_cast<unsigned long>(minuten) * 60UL + static_cast<unsigned long>(sekunden)
+                    : 0;
+                holdWasHeating = heizung;
+                modus = BRAUVORGANG_HALT;
+                anfang = true;
+            } else if (modus != BRAUVORGANG_HALT) {
+                modus = ABBRUCH;
+            }
             break;
 
         case ClickEncoder::DoubleClicked:

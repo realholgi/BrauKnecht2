@@ -19,9 +19,10 @@ static ManualTargetBeepState manualTargetBeep;
 static unsigned long rufsignalzeit = 0;
 
 static void _next_koch_step();
-void enterBraumeisterRufalarm() {
-    mqttPublishRufalarm();
+void enterBraumeisterRufalarm(RUFALARM_REASON reason) {
+    rufalarmReason = reason;
     modus = BRAUMEISTERRUFALARM;
+    mqttPublishRufalarm();
 }
 
 
@@ -483,7 +484,7 @@ void funktion_maischtemperaturautomatik() {
         rufmodus = AUTO_RAST_TEMP;
         y = 0;
         braumeister[y] = BM_ALARM_WAIT;
-        enterBraumeisterRufalarm();
+        enterBraumeisterRufalarm(RUFALARM_REASON_MAISCHSTART);
     }
 }
 
@@ -515,13 +516,18 @@ void funktion_zeitautomatik() {
         drehen = rastZeit[x];
 
         print_lcdP(PSTR("Set Time"), LEFT, 3);
-        setTime(00, 00, 00, 00, 01, 01); // Sekunden auf 0 stellen
-        delay(400); //test
+        if (holdReturnModus == AUTO_RAST_ZEIT) {
+            setTime(holdElapsedSeconds / 3600UL, (holdElapsedSeconds / 60UL) % 60UL,
+                    holdElapsedSeconds % 60UL, 1, 1, 1);
+            holdElapsedSeconds = 0;
+            holdReturnModus = HAUPTSCHIRM;
+        } else {
+            setTime(00, 00, 00, 00, 01, 01);
+        }
 
         sekunden = second();
         minutenwert = minute();
         stunden = hour();
-
         print_lcdP(PSTR("            "), 0, 3);
         anfang = false;
         print_lcdP(PSTR("00:00"), LEFT, 2);
@@ -569,7 +575,7 @@ void funktion_zeitautomatik() {
 
         if (braumeister[y] != BM_ALARM_AUS) {
             rufmodus = modus;
-            enterBraumeisterRufalarm();
+            enterBraumeisterRufalarm(RUFALARM_REASON_RASTENDE);
         }
     }
 }
@@ -589,12 +595,11 @@ void funktion_endtempautomatik() {
     sollwert = endtemp;
 
     if (isttemp >= sollwert) {
-        rufmodus = ABBRUCH;
-        enterBraumeisterRufalarm();
         regelung = REGL_AUS;
         heizung = false;
         y = 0;
         braumeister[y] = BM_ALARM_WAIT;
+        enterBraumeisterRufalarm(RUFALARM_REASON_MAISCHENDE);
     }
 }
 
@@ -656,8 +661,33 @@ void funktion_braumeisterruf() {
         print_lcdP(PSTR("        "), LEFT, 3);     // Text "weiter ?" löschen
         print_lcdP(PSTR("             "), RIGHT, 3); // Löscht Text bei Sensorfehler oder Alarmtest
         sensorfehler = false;
+        rufalarmReason = RUFALARM_REASON_NONE;
         delay(500);     // kurze Wartezeit, damit nicht durch unbeabsichtigtes Drehen der nächste Vorgabewert verstellt wird
     }
+}
+
+void funktion_brauvorgang_halt() {
+    if (anfang) {
+        lcd_clear();
+        drehen = 0;
+        anfang = false;
+    }
+
+    drehen = constrain(drehen, 0, 1);
+    print_lcdP(PSTR("Vorgang HALT"), CENTER, 0);
+    print_lcdP(drehen == 0 ? PSTR(">Fortsetzen") : PSTR(" Fortsetzen"), LEFT, 1);
+    print_lcdP(drehen == 1 ? PSTR(">Abbrechen") : PSTR(" Abbrechen"), LEFT, 2);
+
+    if (!ButtonPressed) return;
+    if (drehen == 1) {
+        funktion_abbruch();
+        return;
+    }
+
+    modus = holdReturnModus;
+    x = holdReturnX;
+    sollwert = holdTarget;
+    anfang = true;
 }
 
 
@@ -791,17 +821,23 @@ void funktion_kochenaufheizen() {
 
 void funktion_hopfenzeitautomatik() {
     if (anfang) {
-        x = 1;
+        const bool resume = holdReturnModus == KOCHEN_AUTO_LAUF;
+        if (!resume) x = 1;
         lcd_clear();
         print_lcdP(PSTR("Kochen"), LEFT, 0);
-        setTime(00, 00, 00, 00, 01, 01); //.........Sekunden auf 0 stellen
+        if (resume) {
+            setTime(holdElapsedSeconds / 3600UL, (holdElapsedSeconds / 60UL) % 60UL,
+                    holdElapsedSeconds % 60UL, 1, 1, 1);
+            holdElapsedSeconds = 0;
+            holdReturnModus = HAUPTSCHIRM;
+        } else {
+            setTime(00, 00, 00, 00, 01, 01);
+        }
         print_lcd_minutes(kochzeit, RIGHT, 0);
 
         sekunden = second();
         minutenwert = minute();
         stunden = hour();
-
-        anfang = false;
         print_lcdP(PSTR("00:00"), 11, 1);
     }
 
@@ -875,11 +911,11 @@ void funktion_hopfenzeitautomatik() {
 
     if (minuten >= kochzeit) {   //Kochzeitende
         rufmodus = ABBRUCH;
-        enterBraumeisterRufalarm();
         regelung = REGL_AUS;
         heizung = false;
         y = 0;
         braumeister[y] = BM_ALARM_WAIT;
+        enterBraumeisterRufalarm(RUFALARM_REASON_KOCHENDE);
     }
 }
 

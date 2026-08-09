@@ -32,11 +32,47 @@ enum MODUS {
     // and /data.json) stay stable:
     AUTOMATIK_FRAGE,        // Rezept-Chooser (Start/Bearbeiten) vor dem Maischen
     KOCHEN_FRAGE,           // Rezept-Chooser (Start/Bearbeiten) vor dem Kochen
-    SETUP_AP
+    SETUP_AP,
+    BRAUVORGANG_HALT
 };
 
 inline bool isRufalarmMode(MODUS mode) {
     return mode == BRAUMEISTERRUFALARM || mode == BRAUMEISTERRUF;
+}
+
+inline bool brewIsActive(MODUS mode) {
+    return mode == AUTO_MAISCHTEMP || mode == AUTO_RAST_TEMP ||
+           mode == AUTO_RAST_ZEIT || mode == AUTO_ENDTEMP ||
+           mode == KOCHEN_AUFHEIZEN || mode == KOCHEN_AUTO_LAUF;
+}
+
+enum RUFALARM_REASON {
+    RUFALARM_REASON_NONE,
+    RUFALARM_REASON_MAISCHSTART,
+    RUFALARM_REASON_RASTENDE,
+    RUFALARM_REASON_MAISCHENDE,
+    RUFALARM_REASON_KOCHENDE,
+    RUFALARM_REASON_SENSORFEHLER,
+    RUFALARM_REASON_ALARMTEST
+};
+
+inline const char *rufalarmReasonName(RUFALARM_REASON reason) {
+    switch (reason) {
+        case RUFALARM_REASON_MAISCHSTART: return "mash_start";
+        case RUFALARM_REASON_RASTENDE: return "rest_complete";
+        case RUFALARM_REASON_MAISCHENDE: return "mash_end";
+        case RUFALARM_REASON_KOCHENDE: return "boil_end";
+        case RUFALARM_REASON_SENSORFEHLER: return "sensor_fault";
+        case RUFALARM_REASON_ALARMTEST: return "alarm_test";
+        default: return "none";
+    }
+}
+
+inline const char *rufalarmActionName(RUFALARM_REASON reason, bool alarm) {
+    if (!alarm) return "none";
+    return reason == RUFALARM_REASON_SENSORFEHLER
+        ? "check_sensor_and_acknowledge_at_controller"
+        : "acknowledge_at_controller";
 }
 
 inline const char *modeStatusName(MODUS mode) {
@@ -107,6 +143,12 @@ extern float isttemp;
 extern bool heizung;
 extern REGEL_MODE regelung;
 extern int x;
+extern RUFALARM_REASON rufalarmReason;
+extern MODUS holdReturnModus;
+extern int holdReturnX;
+extern int holdTarget;
+extern unsigned long holdElapsedSeconds;
+extern bool holdWasHeating;
 
 // shared mutable state (definitions in Brauknecht.cpp)
 extern bool ButtonPressed;

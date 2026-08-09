@@ -54,6 +54,7 @@ a{color:inherit}
 .icon-btn svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .recipe-steps{position:relative;display:grid;gap:0;padding:2px 0}
 .recipe-step{position:relative;display:grid;grid-template-columns:42px minmax(0,1fr) auto;gap:12px;align-items:center;min-height:62px}
+.recipe-step.active{margin:0 -8px;padding:0 8px;border-radius:var(--radius);background:var(--accent-soft)}
 .recipe-step::before{content:"";position:absolute;left:20px;top:0;bottom:0;width:2px;background:#d8dee8}
 .recipe-step:first-child::before{top:50%}
 .recipe-step:last-child::before{bottom:50%}
@@ -222,6 +223,12 @@ const char PAGE_Dashboard[] PROGMEM = R"=====(
               <div class="metric"><span class="metric-label">Soll</span><span id="m_soll" class="metric-value">--</span></div>
               <div class="metric"><span class="metric-label">Heizung</span><span id="m_heiz" class="metric-value status-neutral">--</span></div>
             </div>
+            <ul class="rows">
+              <li><span class="row-label">Schritt</span><span id="activeStep" class="row-value">--</span></li>
+              <li><span class="row-label">Verstrichen</span><span id="activeElapsed" class="row-value">--</span></li>
+              <li><span class="row-label">Gesamt</span><span id="activeTotal" class="row-value">--</span></li>
+              <li><span class="row-label">Verbleibend</span><span id="activeRemaining" class="row-value">--</span></li>
+            </ul>
           </article>
           <article class="card manual-card">
             <h2>Manuelle Steuerung</h2>
@@ -273,9 +280,10 @@ function stepSvg(kind){
 function heatSvg(){
   return '<span class="heat-status"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 20c-1.5-2.5 1.5-3.5 0-6"/><path d="M12 20c-1.5-2.5 1.5-3.5 0-6"/><path d="M17 20c-1.5-2.5 1.5-3.5 0-6"/></svg><span class="heat-label">an</span></span>';
 }
-function addStep(kind, iconText, name, sub, badge, badgeClass){
+function addStep(kind, iconText, name, sub, badge, badgeClass, index, activeIndex){
   const row = document.createElement('div');
-  row.className = 'recipe-step';
+  row.className = 'recipe-step' + (Number.isInteger(activeIndex) && index === activeIndex ? ' active' : '');
+  row.dataset.stepIndex = String(index);
   const icon = document.createElement('span');
   icon.className = 'step-icon ' + kind;
   const svg = stepSvg(kind);
@@ -302,14 +310,22 @@ function addStep(kind, iconText, name, sub, badge, badgeClass){
 function renderRecipe(d){
   $('recipeTitle').textContent = d.recipe_name || 'Standardrezept';
   $('recipeSteps').textContent = '';
-  addStep('mash', '', 'Einmaischen', fmtTemp(d.recipe_maischtemp, 0), '-');
+  const activeIndex = d.active_step_index === null || d.active_step_index === undefined
+    ? null : Number.isInteger(Number(d.active_step_index)) ? Number(d.active_step_index) : null;
   const rests = Array.isArray(d.recipe_rasten) ? d.recipe_rasten : [];
-  rests.forEach((r, i) => addStep('', String(i + 1), (i + 1) + '. Rast', fmtTemp(r.temp, 0), Number(r.zeit || 0) + ' min'));
-  addStep('mashout', '', 'Abmaischen', fmtTemp(d.recipe_endtemp, 0), '-');
-  addStep('boil', '', 'Kochen', '', Number(d.recipe_kochzeit || 0) + ' min', 'warm');
+  const restCount = rests.length;
+  addStep('mash', '', 'Einmaischen', fmtTemp(d.recipe_maischtemp, 0), '-', '', 0, activeIndex);
+  rests.forEach((r, i) => addStep('', String(i + 1), (i + 1) + '. Rast', fmtTemp(r.temp, 0), Number(r.zeit || 0) + ' min', '', i + 1, activeIndex));
+  addStep('mashout', '', 'Abmaischen', fmtTemp(d.recipe_endtemp, 0), '-', '', restCount + 1, activeIndex);
+  addStep('boil', '', 'Kochen', '', Number(d.recipe_kochzeit || 0) + ' min', 'warm', restCount + 2, activeIndex);
   const hops = Array.isArray(d.recipe_hopfen) ? d.recipe_hopfen : [];
-  hops.forEach((t, i) => addStep('hop', '', (i + 1) + '. Hopfengabe', '', Number(t || 0) + ' min', 'neutral'));
-  addStep('boil', '', 'Kochende', '', Number(d.recipe_kochzeit || 0) + ' min', 'warm');
+  hops.forEach((t, i) => addStep('hop', '', (i + 1) + '. Hopfengabe', '', Number(t || 0) + ' min', 'neutral', restCount + 3 + i, activeIndex));
+  addStep('boil', '', 'Kochende', '', Number(d.recipe_kochzeit || 0) + ' min', 'warm', restCount + 3 + hops.length, activeIndex);
+}
+function fmtSeconds(v){
+  const seconds = Number(v);
+  if (!Number.isFinite(seconds) || seconds < 0) return '--';
+  return Math.floor(seconds / 60) + ':' + String(Math.floor(seconds % 60)).padStart(2, '0');
 }
 function renderDashboard(d){
   const ist = fmtTemp(d.temp_ist, 1);
@@ -322,8 +338,14 @@ function renderDashboard(d){
   $('m_heiz').innerHTML = heat ? heatSvg() : 'aus';
   $('m_heiz').className = 'metric-value ' + (heat ? 'status-heat' : 'status-neutral');
   renderRecipe(d);
-  $('alarm').style.display = d.alarm === true ? 'block' : 'none';
-  document.title = d.alarm === true ? 'RUFALARM' : 'BrauKnecht';
+  $('activeStep').textContent = d.active_step_label || '--';
+  $('activeElapsed').textContent = fmtSeconds(d.active_step_elapsed_seconds);
+  $('activeTotal').textContent = fmtSeconds(d.active_step_total_seconds);
+  $('activeRemaining').textContent = fmtSeconds(d.active_step_remaining_seconds);
+  const alarm = d.alarm === true;
+  $('alarm').textContent = alarm ? 'RUFALARM: ' + (d.alarm_reason || 'none') + ' — ' + (d.alarm_action || 'acknowledge_at_controller') : '';
+  $('alarm').style.display = alarm ? 'block' : 'none';
+  document.title = alarm ? 'RUFALARM' : 'BrauKnecht';
 }
 async function poll(){
   try{
@@ -422,7 +444,7 @@ const char PAGE_History[] PROGMEM = R"=====(
               <li><span class="row-label">Zieltemperatur</span><span id="sideTarget" class="row-value">--</span></li>
               <li><span class="row-label">Dauer</span><span id="sideDuration" class="row-value">--</span></li>
             </ul>
-            <div class="progress"><span></span></div>
+            <div class="progress"><span id="stepProgress"></span></div>
           </article>
           <article class="card">
             <h2>Rezept&uuml;bersicht</h2>
@@ -448,11 +470,11 @@ let startText = '';
 let recipeSig = '';
 function fmtTemp(v, digits){ const n = Number(v); return Number.isFinite(n) ? n.toFixed(digits) + ' °C' : '--'; }
 function fmtMin(v){ const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.round(n) + ' min' : '--'; }
-function stepLabel(d){
-  const i = Number(d.rast_nr || 0);
-  if (i > 0 && i <= Number(d.rast_anzahl || 0)) return i + '. Rast';
-  return d.title2 || d.title || '--';
+function fmtSeconds(v){
+  const n = Number(v);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n / 60) + ':' + String(Math.floor(n % 60)).padStart(2, '0') : '--';
 }
+function stepLabel(d){ return d.active_step_label || '--'; }
 function totalDuration(d){
   const rests = Array.isArray(d.recipe_rasten) ? d.recipe_rasten : [];
   const mash = rests.reduce((m, r) => m + Math.max(0, Number(r.zeit || 0)), 0);
@@ -569,8 +591,8 @@ async function poll(){
       targetCurve = buildCurve(d);
       renderRecipeOverview(d);
       $('historyRecipeTitle').textContent = d.recipe_name || 'Standardrezept';
-      const total = totalDuration(d);
-      $('historyDuration').textContent = total > 0 ? Math.floor(total / 60) + ':' + String(total % 60).padStart(2, '0') + ' h' : '--';
+      const recipeTotal = totalDuration(d);
+      $('historyDuration').textContent = recipeTotal > 0 ? Math.floor(recipeTotal / 60) + ':' + String(recipeTotal % 60).padStart(2, '0') + ' h' : '--';
     }
     if (!$('historyRecipeSteps').children.length) renderRecipeOverview(d);
     if (!startText) {
@@ -586,7 +608,9 @@ async function poll(){
     const istText = fmtTemp(d.temp_ist, 1);
     const sollText = fmtTemp(d.temp_soll, 0);
     const step = stepLabel(d);
-    const duration = fmtMin(d.rast_zeit_soll);
+    const duration = fmtSeconds(d.active_step_total_seconds);
+    const elapsed = Number(d.active_step_elapsed_seconds);
+    const total = Number(d.active_step_total_seconds);
     const heat = d.heizung === 'an';
     $('liveIst').textContent = istText;
     $('liveSoll').textContent = sollText;
@@ -600,6 +624,8 @@ async function poll(){
     $('sideStep').textContent = step;
     $('sideTarget').textContent = sollText;
     $('sideDuration').textContent = duration;
+    $('stepProgress').style.width = Number.isFinite(elapsed) && total > 0
+      ? Math.min(100, Math.max(0, elapsed * 100 / total)) + '%' : '0%';
     draw();
   } catch(e){
   } finally {

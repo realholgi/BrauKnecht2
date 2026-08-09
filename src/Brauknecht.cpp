@@ -44,6 +44,12 @@ int minutenwert = 0;
 int stunden = 0;
 MODUS modus = HAUPTSCHIRM;
 MODUS rufmodus = HAUPTSCHIRM;
+RUFALARM_REASON rufalarmReason = RUFALARM_REASON_NONE;
+MODUS holdReturnModus = HAUPTSCHIRM;
+int holdReturnX = 1;
+int holdTarget = 20;
+unsigned long holdElapsedSeconds = 0;
+bool holdWasHeating = false;
 int sollwert = 20;
 int maischtemp = 68;
 int rasten = 1;
@@ -154,12 +160,13 @@ void loop() {
     if (regelung == REGL_MAISCHEN) {
         if (static_cast<int>(isttemp) == -127 || static_cast<int>(isttemp) == 0) {
             if (!sensorfehler) {
-                rufmodus = modus;
+                rufmodus = modus == BRAUVORGANG_HALT ? HAUPTSCHIRM : modus;
                 print_lcdP(PSTR("Sensorfehler"), RIGHT, 2);
                 regelung = REGL_AUS;
                 heizung = false;
                 sensorfehler = true;
-                enterBraumeisterRufalarm();
+                holdReturnModus = HAUPTSCHIRM;
+                enterBraumeisterRufalarm(RUFALARM_REASON_SENSORFEHLER);
             }
         } else {
             sensorfehler = false;

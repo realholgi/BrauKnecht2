@@ -2,7 +2,7 @@
 
 #include "global.h"
 
-void enterBraumeisterRufalarm();
+void enterBraumeisterRufalarm(RUFALARM_REASON reason);
 void funktion_hauptschirm();
 void funktion_setupmenu();
 void funktion_rezeptfrage(const char *titleP, MODUS startModus, MODUS editModus);
@@ -26,4 +26,5 @@ void funktion_anzahlhopfengaben();
 void funktion_hopfengaben();
 void funktion_kochenaufheizen();
 void funktion_hopfenzeitautomatik();
+void funktion_brauvorgang_halt();
 void funktion_abbruch();
