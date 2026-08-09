@@ -570,8 +570,6 @@ void funktion_zeitautomatik() {
 
     const uint32_t elapsedSeconds =
         brewElapsedSeconds(brewClock, static_cast<uint32_t>(millis()));
-    const uint32_t elapsedMinutes = elapsedSeconds / 60UL;
-    const uint32_t secondsWithinMinute = elapsedSeconds % 60UL;
 
     static uint32_t lastElapsedSeconds = UINT32_MAX;
     static int lastZeit = -1;
@@ -580,14 +578,12 @@ void funktion_zeitautomatik() {
         lastZeit = rastZeit[x];
         lcdNeedsRedraw = false;
 
+        char elapsedText[12];
+        snprintf(elapsedText, sizeof(elapsedText), "%02lu:%02lu",
+                 static_cast<unsigned long>(elapsedSeconds / 60UL),
+                 static_cast<unsigned long>(elapsedSeconds % 60UL));
         print_lcd_minutes(rastZeit[x], RIGHT, 2);
-        if (secondsWithinMinute < 10UL) {
-            printNumI_lcd(secondsWithinMinute, 4, 2);
-            if (secondsWithinMinute == 0UL) print_lcdP(PSTR("0"), 3, 2);
-        } else {
-            printNumI_lcd(secondsWithinMinute, 3, 2);
-        }
-        printNumI_lcd(elapsedMinutes, elapsedMinutes < 10UL ? 1 : 0, 2);
+        print_lcd(elapsedText, LEFT, 2);
     }
 
     if (elapsedSeconds >= static_cast<uint32_t>(rastZeit[x]) * 60UL) {
@@ -873,8 +869,6 @@ void funktion_hopfenzeitautomatik() {
 
     const uint32_t elapsedSeconds =
         brewElapsedSeconds(brewClock, static_cast<uint32_t>(millis()));
-    const uint32_t elapsedMinutes = elapsedSeconds / 60UL;
-    const uint32_t secondsWithinMinute = elapsedSeconds % 60UL;
     const uint8_t newHopMask =
         collectDueHops(hopDeadlineState, hopfenZeit, hopfenanzahl, elapsedSeconds);
     if (newHopMask != 0) {
@@ -900,20 +894,13 @@ void funktion_hopfenzeitautomatik() {
             print_lcdP(PSTR("                    "), LEFT, 2);
         }
 
+        char elapsedText[12];
+        const int elapsedTextLength = snprintf(
+            elapsedText, sizeof(elapsedText), "%02lu:%02lu",
+            static_cast<unsigned long>(elapsedSeconds / 60UL),
+            static_cast<unsigned long>(elapsedSeconds % 60UL));
         print_lcdP(PSTR("min"), RIGHT, 1);
-        if (secondsWithinMinute < 10UL) {
-            printNumI_lcd(secondsWithinMinute, 15, 1);
-            print_lcdP(PSTR("0"), 14, 1);
-        } else {
-            printNumI_lcd(secondsWithinMinute, 14, 1);
-        }
-        if (elapsedMinutes < 10UL) {
-            printNumI_lcd(elapsedMinutes, 12, 1);
-        } else if (elapsedMinutes < 100UL) {
-            printNumI_lcd(elapsedMinutes, 11, 1);
-        } else {
-            printNumI_lcd(elapsedMinutes, 10, 1);
-        }
+        print_lcd(elapsedText, 16 - elapsedTextLength, 1);
     }
 
     if (activeHopMask != 0) {

@@ -87,12 +87,10 @@ void handleDataJson() {
 
     const uint32_t elapsedSeconds =
         brewElapsedSeconds(brewClock, static_cast<uint32_t>(millis()));
-    const uint32_t elapsedMinutes = elapsedSeconds / 60UL;
-    const uint32_t secondsWithinMinute = elapsedSeconds % 60UL;
     char jetzt[10];
     snprintf(jetzt, sizeof(jetzt), "%02lu:%02lu",
-             static_cast<unsigned long>(elapsedMinutes),
-             static_cast<unsigned long>(secondsWithinMinute));
+             static_cast<unsigned long>(elapsedSeconds / 60UL),
+             static_cast<unsigned long>(elapsedSeconds % 60UL));
 
     switch (modus) {
         case HAUPTSCHIRM:
