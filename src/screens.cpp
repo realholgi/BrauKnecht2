@@ -3,7 +3,6 @@
 
 #include "screens.h"
 #include "global.h"
-#include "config.h"
 #include "display.h"
 #include "display_format.h"
 #include "hardware.h"

@@ -21,7 +21,7 @@
 #include "recipe_timing.h"
 #include "screens.h"
 
-void watchdogSetup();
+static void watchdogSetup();
 
 #ifdef DEBUG
 unsigned long serwartezeit = 0;
@@ -111,7 +111,7 @@ void setup() {
     readEepromData();
     loadSettings(settings);
 
-    Recipe rcp;
+    Recipe rcp{};
     if (loadRecipe(rcp)) {
         applyRecipe(rcp);
     }
@@ -193,7 +193,7 @@ void loop() {
         if (overlaysDirty || sollwert != lastSoll) {
             lastSoll = sollwert;
             print_lcdP(PSTR("soll "), 9, 1);
-            printNumF_lcd(sollwert, 15, 1);
+            printNumF_lcd(static_cast<float>(sollwert), 15, 1);
             print_lcd_deg(19, 1);
         }
 
@@ -233,7 +233,7 @@ void loop() {
     wdt_reset();
 }
 
-void watchdogSetup() {
+static void watchdogSetup() {
     wdt_enable(WDTO_2S);
 }
 

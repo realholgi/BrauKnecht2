@@ -2,7 +2,6 @@
 
 #include "statemachine.h"
 #include "global.h"
-#include "config.h"
 #include "display.h"
 #include "input.h"
 #include "screens.h"

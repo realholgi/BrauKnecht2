@@ -5,7 +5,6 @@
 #include <LittleFS.h>
 
 #include "global.h"
-#include "config.h"
 #include "html.h"
 #include "web.h"
 #include "settings.h"
