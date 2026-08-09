@@ -15,6 +15,7 @@
 #include "manual_control.h"
 #include "build_info.h"
 #include "brew_status.h"
+#include "recipe_timing.h"
 
 const char *ap_ssid = APSSID;
 
@@ -84,8 +85,14 @@ void handleDataJson() {
     String data;
     String title2 = "Details";
 
+    const uint32_t elapsedSeconds =
+        brewElapsedSeconds(brewClock, static_cast<uint32_t>(millis()));
+    const uint32_t elapsedMinutes = elapsedSeconds / 60UL;
+    const uint32_t secondsWithinMinute = elapsedSeconds % 60UL;
     char jetzt[10];
-    snprintf(jetzt, sizeof(jetzt), "%02i:%02i", (stunden * 60) + minuten, sekunden);
+    snprintf(jetzt, sizeof(jetzt), "%02lu:%02lu",
+             static_cast<unsigned long>(elapsedMinutes),
+             static_cast<unsigned long>(secondsWithinMinute));
 
     switch (modus) {
         case HAUPTSCHIRM:
@@ -177,7 +184,7 @@ void handleDataJson() {
             break;
 
         case AUTO_RAST_ZEIT:
-            title = F("Maisch-Automatik"); // x (rasten), rastZeit[x], minuten, sekunden
+            title = F("Maisch-Automatik");
             title2 = F("Rast ");
             title2 += x;
             title2 += F(" von ");
@@ -220,18 +227,20 @@ void handleDataJson() {
             title = F("Kochen: Aufheizen");
             break;
 
-        case KOCHEN_AUTO_LAUF:// x (hopfenanzahl), hopfenZeit[x], minuten, sekunden, kochzeit
+        case KOCHEN_AUTO_LAUF:
             title = F("Kochen");
 
             title2 = "Kochzeit gesamt: ";
             title2 += kochzeit;
             title2 += " min";
 
-            data = "<li>";
-            data += x;
-            data += ". Hopfengabe bei ";
-            data += hopfenZeit[x];
-            data += " min</li>";
+            if (x <= hopfenanzahl && x <= MAX_HOP_DEADLINES) {
+                data = "<li>";
+                data += x;
+                data += ". Hopfengabe bei ";
+                data += hopfenZeit[x];
+                data += " min</li>";
+            }
 
             data += "<li>Aktuell: ";
             data += jetzt;
@@ -259,9 +268,6 @@ void handleDataJson() {
     json["regelung"] = static_cast<int>(regelung);
 
     const bool hold = modus == BRAUVORGANG_HALT;
-    const unsigned long elapsedSeconds = hold
-        ? holdElapsedSeconds
-        : static_cast<unsigned long>(minuten) * 60UL + static_cast<unsigned long>(sekunden);
     const BrewStatus activeStep = brewStatus({
         modus, holdReturnModus, x, holdReturnX, rasten, hopfenanzahl,
         rastZeit, kochzeit, elapsedSeconds, hold

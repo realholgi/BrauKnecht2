@@ -1,5 +1,5 @@
 #include <Arduino.h>
-#include <TimeLib.h>
+
 
 #include "screens.h"
 #include "global.h"
@@ -12,13 +12,54 @@
 #include "manual_control.h"
 #include "web.h"
 #include "mqtt.h"
+#include "recipe_timing.h"
 
 static int y = 1;                                    //Übergabewert von x für Braumeisterruf
 static int pause = 0;
 static ManualTargetBeepState manualTargetBeep;
 static unsigned long rufsignalzeit = 0;
+static HopDeadlineState hopDeadlineState;
+static uint8_t activeHopMask = 0;
+static uint32_t hopReminderStartedAtSeconds = 0;
 
-static void _next_koch_step();
+static void renderActiveHopReminder() {
+    uint8_t first = 0;
+    uint8_t last = 0;
+    uint8_t count = 0;
+    for (uint8_t index = 1; index <= MAX_HOP_DEADLINES; ++index) {
+        if ((activeHopMask & static_cast<uint8_t>(1U << (index - 1))) == 0) continue;
+        if (first == 0) first = index;
+        last = index;
+        ++count;
+    }
+
+    if (count == 1) {
+        print_lcdP(PSTR("                    "), LEFT, 2);
+        print_lcdP(PSTR("Gabe "), LEFT, 2);
+        printNumI_lcd(first, 5, 2);
+        print_lcdP(PSTR(" jetzt"), 6, 2);
+        return;
+    }
+
+    bool contiguous = true;
+    for (uint8_t index = first; index <= last; ++index) {
+        if ((activeHopMask & static_cast<uint8_t>(1U << (index - 1))) == 0) {
+            contiguous = false;
+            break;
+        }
+    }
+    print_lcdP(PSTR("                    "), LEFT, 2);
+    if (contiguous) {
+        print_lcdP(PSTR("Gaben "), LEFT, 2);
+        printNumI_lcd(first, 6, 2);
+        print_lcdP(PSTR("-"), 7, 2);
+        printNumI_lcd(last, 8, 2);
+        print_lcdP(PSTR(" jetzt"), 9, 2);
+    } else {
+        printNumI_lcd(count, LEFT, 2);
+        print_lcdP(PSTR(" Gaben jetzt"), 1, 2);
+    }
+}
 void enterBraumeisterRufalarm(RUFALARM_REASON reason) {
     rufalarmReason = reason;
     modus = BRAUMEISTERRUFALARM;
@@ -511,65 +552,53 @@ void funktion_tempautomatik() {
 }
 
 void funktion_zeitautomatik() {
-    // Zeitzählung-Init (einmalig)
     if (anfang) {
         drehen = rastZeit[x];
-
         print_lcdP(PSTR("Set Time"), LEFT, 3);
         if (holdReturnModus == AUTO_RAST_ZEIT) {
-            setTime(holdElapsedSeconds / 3600UL, (holdElapsedSeconds / 60UL) % 60UL,
-                    holdElapsedSeconds % 60UL, 1, 1, 1);
-            holdElapsedSeconds = 0;
             holdReturnModus = HAUPTSCHIRM;
         } else {
-            setTime(00, 00, 00, 00, 01, 01);
+            startBrewClock(brewClock, static_cast<uint32_t>(millis()));
         }
-
-        sekunden = second();
-        minutenwert = minute();
-        stunden = hour();
         print_lcdP(PSTR("            "), 0, 3);
         anfang = false;
         print_lcdP(PSTR("00:00"), LEFT, 2);
     }
 
     drehen = constrain(drehen, 10, 105);
-    rastZeit[x] = drehen; // Encoderzuordnung
-    minuten = (stunden * 60) + minutenwert;
+    rastZeit[x] = drehen;
 
-    // Anzeige nur bei Sekunden-/Zielzeit-Wechsel neu zeichnen (sonst Flackern)
-    static int lastSek = -1, lastZeit = -1;
-    if (lcdNeedsRedraw || sekunden != lastSek || rastZeit[x] != lastZeit) {
-        lastSek = sekunden;
+    const uint32_t elapsedSeconds =
+        brewElapsedSeconds(brewClock, static_cast<uint32_t>(millis()));
+    const uint32_t elapsedMinutes = elapsedSeconds / 60UL;
+    const uint32_t secondsWithinMinute = elapsedSeconds % 60UL;
+
+    static uint32_t lastElapsedSeconds = UINT32_MAX;
+    static int lastZeit = -1;
+    if (lcdNeedsRedraw || elapsedSeconds != lastElapsedSeconds || rastZeit[x] != lastZeit) {
+        lastElapsedSeconds = elapsedSeconds;
         lastZeit = rastZeit[x];
         lcdNeedsRedraw = false;
 
         print_lcd_minutes(rastZeit[x], RIGHT, 2);
-
-        if (sekunden < 10) {
-            printNumI_lcd(sekunden, 4, 2);
-            if (sekunden == 0) {
-                print_lcdP(PSTR("0"), 3, 2);
-            }
+        if (secondsWithinMinute < 10UL) {
+            printNumI_lcd(secondsWithinMinute, 4, 2);
+            if (secondsWithinMinute == 0UL) print_lcdP(PSTR("0"), 3, 2);
         } else {
-            printNumI_lcd(sekunden, 3, 2);
+            printNumI_lcd(secondsWithinMinute, 3, 2);
         }
-
-        if (minuten < 10) {
-            printNumI_lcd(minuten, 1, 2);
-        } else {
-            printNumI_lcd(minuten, 0, 2);
-        }
+        printNumI_lcd(elapsedMinutes, elapsedMinutes < 10UL ? 1 : 0, 2);
     }
 
-    if (minuten >= rastZeit[x]) {
+    if (elapsedSeconds >= static_cast<uint32_t>(rastZeit[x]) * 60UL) {
+        resetBrewClock(brewClock);
         anfang = true;
         y = x;
         if (x < rasten) {
             modus = AUTO_RAST_TEMP;
             x++;
         } else {
-            x = 1; // Endtemperatur
+            x = 1;
             modus = AUTO_ENDTEMP;
         }
 
@@ -684,7 +713,11 @@ void funktion_brauvorgang_halt() {
         return;
     }
 
-    modus = holdReturnModus;
+    const MODUS resumedModus = holdReturnModus;
+    if (resumedModus == AUTO_RAST_ZEIT || resumedModus == KOCHEN_AUTO_LAUF) {
+        resumeBrewClock(brewClock, static_cast<uint32_t>(millis()));
+    }
+    modus = resumedModus;
     x = holdReturnX;
     sollwert = holdTarget;
     anfang = true;
@@ -822,67 +855,70 @@ void funktion_kochenaufheizen() {
 void funktion_hopfenzeitautomatik() {
     if (anfang) {
         const bool resume = holdReturnModus == KOCHEN_AUTO_LAUF;
-        if (!resume) x = 1;
-        lcd_clear();
-        print_lcdP(PSTR("Kochen"), LEFT, 0);
         if (resume) {
-            setTime(holdElapsedSeconds / 3600UL, (holdElapsedSeconds / 60UL) % 60UL,
-                    holdElapsedSeconds % 60UL, 1, 1, 1);
-            holdElapsedSeconds = 0;
             holdReturnModus = HAUPTSCHIRM;
         } else {
-            setTime(00, 00, 00, 00, 01, 01);
+            x = 1;
+            startBrewClock(brewClock, static_cast<uint32_t>(millis()));
+            resetHopDeadlines(hopDeadlineState);
+            activeHopMask = 0;
+            hopReminderStartedAtSeconds = 0;
         }
+        lcd_clear();
+        print_lcdP(PSTR("Kochen"), LEFT, 0);
         print_lcd_minutes(kochzeit, RIGHT, 0);
-
-        sekunden = second();
-        minutenwert = minute();
-        stunden = hour();
         print_lcdP(PSTR("00:00"), 11, 1);
+        anfang = false;
     }
 
-    minuten = (stunden * 60) + minutenwert;
+    const uint32_t elapsedSeconds =
+        brewElapsedSeconds(brewClock, static_cast<uint32_t>(millis()));
+    const uint32_t elapsedMinutes = elapsedSeconds / 60UL;
+    const uint32_t secondsWithinMinute = elapsedSeconds % 60UL;
+    const uint8_t newHopMask =
+        collectDueHops(hopDeadlineState, hopfenZeit, hopfenanzahl, elapsedSeconds);
+    if (newHopMask != 0) {
+        activeHopMask |= newHopMask;
+        hopReminderStartedAtSeconds = elapsedSeconds;
+    }
 
-    // Anzeige nur bei Sekunden-/Gaben-Wechsel neu zeichnen (sonst Flackern)
-    static int lastSek = -1, lastX = -1;
-    if (lcdNeedsRedraw || sekunden != lastSek || x != lastX) {
-        lastSek = sekunden;
+    const uint8_t nextHop = nextPendingHopIndex(hopDeadlineState, hopfenanzahl);
+    x = nextHop == 0 ? MAX_HOP_DEADLINES + 1 : nextHop;
+
+    static uint32_t lastElapsedSeconds = UINT32_MAX;
+    static int lastX = -1;
+    if (lcdNeedsRedraw || elapsedSeconds != lastElapsedSeconds || x != lastX) {
+        lastElapsedSeconds = elapsedSeconds;
         lastX = x;
         lcdNeedsRedraw = false;
 
-        if (x <= hopfenanzahl) {
+        if (activeHopMask == 0 && x <= hopfenanzahl && x <= MAX_HOP_DEADLINES) {
             printNumI_lcd(x, LEFT, 2);
             print_lcdP(PSTR(". Gabe bei "), 1, 2);
             print_lcd_minutes(hopfenZeit[x], RIGHT, 2);
-        } else {
-            print_lcdP(PSTR("                    "), 0, 2);
+        } else if (activeHopMask == 0) {
+            print_lcdP(PSTR("                    "), LEFT, 2);
         }
 
         print_lcdP(PSTR("min"), RIGHT, 1);
-
-        if (sekunden < 10) {
-            printNumI_lcd(sekunden, 15, 1);
-            if (sekunden) {
-                print_lcdP(PSTR("0"), 14, 1);
-            }
+        if (secondsWithinMinute < 10UL) {
+            printNumI_lcd(secondsWithinMinute, 15, 1);
+            print_lcdP(PSTR("0"), 14, 1);
         } else {
-            printNumI_lcd(sekunden, 14, 1);
+            printNumI_lcd(secondsWithinMinute, 14, 1);
         }
-
-        if (minuten < 10) {
-            printNumI_lcd(minuten, 12, 1);
-        }
-        if ((minuten >= 10) && (minuten < 100)) {
-            printNumI_lcd(minuten, 11, 1);
-        }
-        if (minuten >= 100) {
-            printNumI_lcd(minuten, 10, 1);
+        if (elapsedMinutes < 10UL) {
+            printNumI_lcd(elapsedMinutes, 12, 1);
+        } else if (elapsedMinutes < 100UL) {
+            printNumI_lcd(elapsedMinutes, 11, 1);
+        } else {
+            printNumI_lcd(elapsedMinutes, 10, 1);
         }
     }
 
-    if ((x <= hopfenanzahl) && (minuten == hopfenZeit[x])) {  // Hopfengabe
-        //Alarm -----
-        if (millis() >= (altsekunden + 1000)) { //Blinken der Anzeige und RUF
+    if (activeHopMask != 0) {
+        renderActiveHopReminder();
+        if (millis() >= (altsekunden + 1000)) {
             print_lcdP(PSTR("   "), LEFT, 3);
             beeperOnOff(false);
             if (millis() >= (altsekunden + 1500)) {
@@ -891,25 +927,23 @@ void funktion_hopfenzeitautomatik() {
             }
         } else {
             print_lcdP(PSTR("RUF"), LEFT, 3);
-            if (pause <= 4) {
-                beeperOnOff(true);
-            }
-            if (pause > 8) {
-                pause = 0;
-            }
+            if (pause <= 4) beeperOnOff(true);
+            if (pause > 8) pause = 0;
         }
 
-        if (warte_und_weiter(modus)) {
-            anfang = false; // nicht zurücksetzen!!!
-            _next_koch_step();
+        if (warte_und_weiter(modus) ||
+            elapsedSeconds - hopReminderStartedAtSeconds >= 60UL) {
+            print_lcdP(PSTR("   "), LEFT, 3);
+            pause = 0;
+            beeperOnOff(false);
+            activeHopMask = 0;
+            anfang = false;
         }
     }
 
-    if ((x <= hopfenanzahl) && (minuten > hopfenZeit[x])) {  // Alarmende nach 1 Minute
-        _next_koch_step();
-    }
-
-    if (minuten >= kochzeit) {   //Kochzeitende
+    if (elapsedSeconds >= static_cast<uint32_t>(kochzeit) * 60UL) {
+        resetBrewClock(brewClock);
+        anfang = true;
         rufmodus = ABBRUCH;
         regelung = REGL_AUS;
         heizung = false;
@@ -919,18 +953,13 @@ void funktion_hopfenzeitautomatik() {
     }
 }
 
-static void _next_koch_step() {
-    print_lcdP(PSTR("   "), LEFT, 3);
-    pause = 0;
-    beeperOnOff(false);
-    x++;
-}
 
 void funktion_abbruch() {
     regelung = REGL_AUS;
     heizung = false;
     heizungOnOff(false);
     beeperOnOff(false);
+    resetBrewClock(brewClock);
     anfang = true;
     lcd_clear();
     rufmodus = HAUPTSCHIRM;

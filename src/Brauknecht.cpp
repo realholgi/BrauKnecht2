@@ -1,6 +1,6 @@
 
 #include <Arduino.h>
-#include <TimeLib.h>
+
 #include <ESP8266mDNS.h>
 #include <ArduinoOTA.h>
 
@@ -18,6 +18,7 @@
 #include "recipe.h"
 #include "build_info.h"
 #include "temperature_control.h"
+#include "recipe_timing.h"
 #include "screens.h"
 
 void watchdogSetup();
@@ -38,17 +39,14 @@ int n = 0;                                            //Counter Messungserhöhun
 uint8_t kschwelle = KOCHSCHWELLE_DEFAULT;
 bool einmaldruck = false;
 
-int sekunden = 0;
-int minuten = 0;
-int minutenwert = 0;
-int stunden = 0;
+ 
 MODUS modus = HAUPTSCHIRM;
 MODUS rufmodus = HAUPTSCHIRM;
 RUFALARM_REASON rufalarmReason = RUFALARM_REASON_NONE;
 MODUS holdReturnModus = HAUPTSCHIRM;
 int holdReturnX = 1;
 int holdTarget = 20;
-unsigned long holdElapsedSeconds = 0;
+
 bool holdWasHeating = false;
 int sollwert = 20;
 int maischtemp = 68;
@@ -65,6 +63,7 @@ char recipeName[40] = "Standardrezept";
 int timer = 10;
 float isttemp = 20;
 bool heizung = false;
+BrewClockState brewClock;
 
 int x = 1;                                            //aktuelle Rast Nummer
 
@@ -145,9 +144,7 @@ void loop() {
     handle_http();
     mqttLoop();
 
-    sekunden = second();
-    minutenwert = minute();
-    stunden = hour();
+
 
     readTemperature();
 

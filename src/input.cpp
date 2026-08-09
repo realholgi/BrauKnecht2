@@ -4,6 +4,7 @@
 #include "config.h"
 #include "global.h"
 #include "statemachine.h"
+#include "recipe_timing.h"
 
 ClickEncoder encoder1 = ClickEncoder(encoderPinA, encoderPinB, tasterPin, ENCODER_STEPS_PER_NOTCH);
 
@@ -48,9 +49,9 @@ bool getButton() {
                 holdReturnModus = modus;
                 holdReturnX = x;
                 holdTarget = sollwert;
-                holdElapsedSeconds = (modus == AUTO_RAST_ZEIT || modus == KOCHEN_AUTO_LAUF)
-                    ? static_cast<unsigned long>(minuten) * 60UL + static_cast<unsigned long>(sekunden)
-                    : 0;
+                if (modus == AUTO_RAST_ZEIT || modus == KOCHEN_AUTO_LAUF) {
+                    pauseBrewClock(brewClock, static_cast<uint32_t>(millis()));
+                }
                 holdWasHeating = heizung;
                 modus = BRAUVORGANG_HALT;
                 anfang = true;

@@ -1,6 +1,8 @@
 #pragma once
 
 #include <stdint.h>
+struct BrewClockState;
+
 
 enum MODUS {
     HAUPTSCHIRM = 0,
@@ -121,10 +123,7 @@ constexpr int ENCODER_STEPS_PER_NOTCH = 4;   // Change this depending on which e
 
 constexpr char APSSID[] = "BrauKnecht";
 
-extern int sekunden;
-extern int minuten;
-extern int minutenwert;
-extern int stunden;
+extern BrewClockState brewClock;
 extern MODUS modus;
 extern MODUS rufmodus;
 extern int sollwert;
@@ -147,7 +146,6 @@ extern RUFALARM_REASON rufalarmReason;
 extern MODUS holdReturnModus;
 extern int holdReturnX;
 extern int holdTarget;
-extern unsigned long holdElapsedSeconds;
 extern bool holdWasHeating;
 
 // shared mutable state (definitions in Brauknecht.cpp)
