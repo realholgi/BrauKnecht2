@@ -12,6 +12,8 @@
 #include "web.h"
 #include "mqtt.h"
 #include "recipe_timing.h"
+#include "history_store.h"
+#include "recipe.h"
 
 static int y = 1;                                    //Übergabewert von x für Braumeisterruf
 static int pause = 0;
@@ -508,6 +510,7 @@ void funktion_startabfrage(MODUS naechsterModus, const char *title) {
 }
 
 void funktion_maischtemperaturautomatik() {
+    const bool freshEntry = anfang;
     if (anfang) {
         lcd_clear();
         drehen = maischtemp;
@@ -519,6 +522,11 @@ void funktion_maischtemperaturautomatik() {
     drehen = constrain(drehen, 10, 105);
     maischtemp = drehen;
     sollwert = maischtemp;
+    if (freshEntry) {
+        historyStartSession(HistorySessionKind::Mash, currentRecipe(), static_cast<uint32_t>(millis()),
+                            isttemp, sollwert, heizung, static_cast<uint8_t>(modus),
+                            static_cast<uint8_t>(x));
+    }
 
     if (isttemp >= sollwert) {
         rufmodus = AUTO_RAST_TEMP;
@@ -621,6 +629,8 @@ void funktion_endtempautomatik() {
     if (isttemp >= sollwert) {
         regelung = REGL_AUS;
         heizung = false;
+        historyFinishSession(HistoryResult::Success, static_cast<uint32_t>(millis()));
+        rufmodus = ABBRUCH;
         y = 0;
         braumeister[y] = BM_ALARM_WAIT;
         enterBraumeisterRufalarm(RUFALARM_REASON_MAISCHENDE);
@@ -827,6 +837,7 @@ void funktion_hopfengaben() {
 }
 
 void funktion_kochenaufheizen() {
+    const bool freshEntry = anfang;
     if (anfang) {
         lcd_clear();
         print_lcdP(PSTR("Kochen"), LEFT, 0);
@@ -834,6 +845,11 @@ void funktion_kochenaufheizen() {
     }
 
     sollwert = kschwelle;
+    if (freshEntry) {
+        historyStartSession(HistorySessionKind::Boil, currentRecipe(), static_cast<uint32_t>(millis()),
+                            isttemp, sollwert, heizung, static_cast<uint8_t>(modus),
+                            static_cast<uint8_t>(x));
+    }
     if (isttemp >= sollwert) {
         print_lcdP(PSTR("            "), RIGHT, 0);
         print_lcdP(PSTR("Kochbeginn"), CENTER, 1);
@@ -933,6 +949,7 @@ void funktion_hopfenzeitautomatik() {
         rufmodus = ABBRUCH;
         regelung = REGL_AUS;
         heizung = false;
+        historyFinishSession(HistoryResult::Success, static_cast<uint32_t>(millis()));
         y = 0;
         braumeister[y] = BM_ALARM_WAIT;
         enterBraumeisterRufalarm(RUFALARM_REASON_KOCHENDE);
@@ -945,6 +962,7 @@ void funktion_abbruch() {
     heizung = false;
     heizungOnOff(false);
     beeperOnOff(false);
+    historyFinishSession(HistoryResult::Aborted, static_cast<uint32_t>(millis()));
     resetBrewClock(brewClock);
     anfang = true;
     lcd_clear();
@@ -957,4 +975,5 @@ void funktion_abbruch() {
     drehen = sollwert;
 
     modus = HAUPTSCHIRM;
+    historyEndWorkflow();
 }

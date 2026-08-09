@@ -16,6 +16,8 @@
 #include "brew_status.h"
 #include "recipe_timing.h"
 
+#include "history_store.h"
+#include "history_export.h"
 const char *ap_ssid = APSSID;
 
 ESP8266WebServer HTTP(80);
@@ -38,11 +40,16 @@ static void handleRecipeUpload();
 static void handleHistory();
 static void handleManualPost();
 static void handleAccessPointPost();
+static void handleHistorySessions();
+static void handleHistoryDetail(HistoryExportFormat format);
 
 void setupWebserver() {
     HTTP.collectHeaders("X-BrauKnecht-Action");
     HTTP.on("/", handleRoot);
     HTTP.on("/history", HTTP_GET, handleHistory);
+    HTTP.on("/history/sessions.json", HTTP_GET, handleHistorySessions);
+    HTTP.on("/history/session.json", HTTP_GET, []() { handleHistoryDetail(HistoryExportFormat::SessionJson); });
+    HTTP.on("/history/session.csv", HTTP_GET, []() { handleHistoryDetail(HistoryExportFormat::SessionCsv); });
     HTTP.on("/style.css", HTTP_GET, []() {
         HTTP.sendHeader("Cache-Control", "max-age=86400");
         HTTP.send_P(200, "text/css", STYLE_CSS);
@@ -62,6 +69,77 @@ void setupWebserver() {
     HTTP.onNotFound(handleNotFound);
     HTTP.begin();
     MDNS.addService("http", "tcp", 80);
+}
+
+static bool appendHistoryResponse(const char *bytes, size_t length, void *) {
+    HTTP.sendContent(bytes, length);
+    return true;
+}
+struct HistoryExportContext {
+    HistoryExportWriter *writer;
+    bool ok;
+};
+
+static bool writeHistoryRecord(const HistoryAggregate &record, void *context) {
+    HistoryExportContext *exportContext = static_cast<HistoryExportContext *>(context);
+    exportContext->ok = exportContext->writer->writeRecord(record);
+    return exportContext->ok;
+}
+
+static bool parseHistoryId(uint32_t &id) {
+    if (HTTP.args() != 1 || HTTP.argName(0) != "id") return false;
+    const String value = HTTP.arg(0);
+    if (value.length() == 0 || value.length() > 10) return false;
+    uint64_t parsed = 0;
+    for (size_t i = 0; i < value.length(); ++i) {
+        const char c = value[i];
+        if (c < '0' || c > '9') return false;
+        parsed = parsed * 10U + static_cast<uint8_t>(c - '0');
+    }
+    if (parsed == 0 || parsed > UINT32_MAX) return false;
+    id = static_cast<uint32_t>(parsed);
+    return true;
+}
+
+static void sendHistoryError(int status, const char *message) {
+    HTTP.sendHeader("Cache-Control", "no-store");
+    HTTP.sendHeader("X-Content-Type-Options", "nosniff");
+    HTTP.send(status, "text/plain; charset=utf-8", message);
+}
+
+static bool appendHistoryText(const char *bytes, size_t length, void *context) {
+    String *body = static_cast<String *>(context);
+    return body->concat(bytes, length);
+}
+
+static void handleHistorySessions() {
+    if (HTTP.args() != 0) { sendHistoryError(400, "invalid history request"); return; }
+    String body;
+    HistoryTextSink sink{appendHistoryText, &body};
+    HistoryExportWriter writer(HistoryExportFormat::SessionListJson, sink);
+    if (!writer.begin(HISTORY_STORAGE_BUDGET_BYTES, historyRetainedBytes(), nullptr)) { sendHistoryError(500, "history export failed"); return; }
+    uint32_t ids[HISTORY_MAX_SESSIONS]; uint8_t count = 0;
+    if (historyListSessionIds(ids, HISTORY_MAX_SESSIONS, count) != HistoryStoreResult::Ok) { sendHistoryError(500, "history unavailable"); return; }
+    for (uint8_t i = 0; i < count; ++i) { HistorySessionSummary summary; if (historyReadSessionSummary(ids[i], summary) != HistoryStoreResult::Ok || !writer.writeSession(summary)) { sendHistoryError(500, "history export failed"); return; } }
+    if (!writer.finish()) { sendHistoryError(500, "history export failed"); return; }
+    HTTP.sendHeader("Cache-Control", "no-store"); HTTP.sendHeader("X-Content-Type-Options", "nosniff");
+    HTTP.send(200, "application/json; charset=utf-8", body);
+}
+
+static void handleHistoryDetail(HistoryExportFormat format) {
+    uint32_t id = 0; if (!parseHistoryId(id)) { sendHistoryError(400, "invalid history id"); return; }
+    HistorySessionSummary summary;
+    const HistoryStoreResult readResult = historyReadSessionSummary(id, summary);
+    if (readResult == HistoryStoreResult::NotFound) { sendHistoryError(404, "history not found"); return; }
+    if (readResult != HistoryStoreResult::Ok) { sendHistoryError(500, "history unavailable"); return; }
+    char filename[48]; snprintf(filename, sizeof(filename), "attachment; filename=\"brauknecht-history-%08lX.%s\"", static_cast<unsigned long>(id), format == HistoryExportFormat::SessionCsv ? "csv" : "json");
+    HTTP.sendHeader("Content-Disposition", filename); HTTP.sendHeader("Cache-Control", "no-store"); HTTP.sendHeader("X-Content-Type-Options", "nosniff");
+    if (!HTTP.chunkedResponseModeStart(200, format == HistoryExportFormat::SessionCsv ? "text/csv; charset=utf-8" : "application/json; charset=utf-8")) { sendHistoryError(500, "history export failed"); return; }
+    HistoryTextSink sink{appendHistoryResponse, nullptr}; HistoryExportWriter writer(format, sink);
+    if (!writer.begin(HISTORY_STORAGE_BUDGET_BYTES, historyRetainedBytes(), &summary)) return;
+    HistoryExportContext context{&writer, true};
+    if (historyVisitSessionRecords(id, writeHistoryRecord, &context) != HistoryStoreResult::Ok || !context.ok || !writer.finish()) return;
+    HTTP.chunkedResponseFinalize();
 }
 
 void handleNotFound() {

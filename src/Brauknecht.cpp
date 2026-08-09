@@ -20,6 +20,7 @@
 #include "temperature_control.h"
 #include "recipe_timing.h"
 #include "screens.h"
+#include "history_store.h"
 
 static void watchdogSetup();
 
@@ -100,6 +101,7 @@ void setup() {
     temperatureSetup();
 
     persistenceSetup();
+    historySetup();
     readEepromData();
     loadSettings(settings);
 
@@ -133,7 +135,6 @@ void setup() {
 void loop() {
     ArduinoOTA.handle();
     serviceWiFiAp();
-    handle_http();
     mqttLoop();
 
 
@@ -154,6 +155,7 @@ void loop() {
                 regelung = REGL_AUS;
                 heizung = false;
                 sensorfehler = true;
+                historyFinishSession(HistoryResult::SensorFault, static_cast<uint32_t>(millis()));
                 holdReturnModus = HAUPTSCHIRM;
                 enterBraumeisterRufalarm(RUFALARM_REASON_SENSORFEHLER);
             }
@@ -221,6 +223,9 @@ void loop() {
     getButton();
 
     stateMachine();
+    historyTick(static_cast<uint32_t>(millis()), isttemp, sollwert, heizung,
+                static_cast<uint8_t>(modus), static_cast<uint8_t>(x));
+    handle_http();
 
     wdt_reset();
 }

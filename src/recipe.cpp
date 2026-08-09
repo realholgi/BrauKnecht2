@@ -25,7 +25,7 @@ void applyRecipe(const Recipe &r) {
 
 // Inverse of applyRecipe: pack the brewing globals into a Recipe (for the web view).
 Recipe currentRecipe() {
-    Recipe r;
+    Recipe r{};
     snprintf(r.name, sizeof(r.name), "%s", recipeName);
     r.maischtemp = maischtemp;
     r.rasten = rasten;
