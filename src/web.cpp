@@ -332,7 +332,11 @@ void handleDataJson() {
     json["title"] = title;
     json["title2"] = title2;
     json["temp_ist"] = isttemp;
-    json["temp_soll"] = sollwert;
+    if (regelung == REGL_AUS) {
+        json["temp_soll"] = nullptr;
+    } else {
+        json["temp_soll"] = sollwert;
+    }
     json["heizung"] = heizung ? "an" : "aus";
 
     json["data"] = data;

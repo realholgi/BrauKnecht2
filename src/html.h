@@ -329,10 +329,10 @@ function fmtSeconds(v){
 }
 function renderDashboard(d){
   const ist = fmtTemp(d.temp_ist, 1);
-  const sollValue = clampSoll(d.temp_soll);
-  const soll = fmtTemp(sollValue, 0);
+  const hasSoll = d.temp_soll !== null && Number.isFinite(Number(d.temp_soll));
+  const sollValue = hasSoll ? clampSoll(d.temp_soll) : clampSoll(Math.round(Number(d.temp_ist)));
   $('m_ist').textContent = ist;
-  $('m_soll').textContent = soll;
+  $('m_soll').textContent = hasSoll ? fmtTemp(sollValue, 0) : '--';
   if (!manualDirty) setManualSoll(sollValue, false);
   const heat = d.heizung === 'an';
   $('m_heiz').innerHTML = heat ? heatSvg() : 'aus';

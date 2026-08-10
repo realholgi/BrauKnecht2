@@ -94,7 +94,11 @@ static void publishDiscovery() {
 static void publishState() {
     JsonDocument doc;
     doc["isttemp"] = isttemp;
-    doc["sollwert"] = sollwert;
+    if (regelung == REGL_AUS) {
+        doc["sollwert"] = nullptr;
+    } else {
+        doc["sollwert"] = sollwert;
+    }
     doc["heizung"] = heizung ? "ON" : "OFF";
     doc["modus"] = static_cast<int>(modus);
     doc["status"] = modeStatusName(modus);
