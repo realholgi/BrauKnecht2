@@ -572,7 +572,7 @@ void funktion_zeitautomatik() {
         print_lcdP(PSTR("00:00"), LEFT, 2);
     }
 
-    drehen = constrain(drehen, 10, 105);
+    drehen = constrain(drehen, RECIPE_REST_DURATION_MIN, RECIPE_REST_DURATION_MAX);
     rastZeit[x] = drehen;
 
     const uint32_t elapsedSeconds =

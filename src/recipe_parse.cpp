@@ -9,6 +9,57 @@ static int clampInt(int v, int lo, int hi) {
     return v;
 }
 
+RecipeValidationResult validateRecipe(const Recipe &recipe) {
+    if (recipe.name[0] == '\0') {
+        return {RecipeValidationError::EmptyName, 0};
+    }
+
+    bool terminated = false;
+    for (size_t i = 0; i < RECIPE_NAME_CAPACITY; ++i) {
+        const uint8_t byte = static_cast<uint8_t>(recipe.name[i]);
+        if (byte == '\0') {
+            terminated = true;
+            break;
+        }
+        if (byte < 0x20 || byte == 0x7f) {
+            return {RecipeValidationError::InvalidName, 0};
+        }
+    }
+    if (!terminated) {
+        return {RecipeValidationError::InvalidName, 0};
+    }
+
+    if (recipe.maischtemp < RECIPE_MASH_TEMP_MIN || recipe.maischtemp > RECIPE_MASH_TEMP_MAX) {
+        return {RecipeValidationError::MashTemperature, 0};
+    }
+    if (recipe.rasten < RECIPE_REST_COUNT_MIN || recipe.rasten > RECIPE_REST_COUNT_MAX) {
+        return {RecipeValidationError::RestCount, 0};
+    }
+    for (int i = 1; i <= recipe.rasten; ++i) {
+        if (recipe.rastTemp[i] < RECIPE_REST_TEMP_MIN || recipe.rastTemp[i] > RECIPE_REST_TEMP_MAX) {
+            return {RecipeValidationError::RestTemperature, static_cast<uint8_t>(i)};
+        }
+        if (recipe.rastZeit[i] < RECIPE_REST_DURATION_MIN || recipe.rastZeit[i] > RECIPE_REST_DURATION_MAX) {
+            return {RecipeValidationError::RestDuration, static_cast<uint8_t>(i)};
+        }
+    }
+    if (recipe.endtemp < RECIPE_MASH_OUT_TEMP_MIN || recipe.endtemp > RECIPE_MASH_OUT_TEMP_MAX) {
+        return {RecipeValidationError::MashOutTemperature, 0};
+    }
+    if (recipe.kochzeit < RECIPE_BOIL_DURATION_MIN || recipe.kochzeit > RECIPE_BOIL_DURATION_MAX) {
+        return {RecipeValidationError::BoilDuration, 0};
+    }
+    if (recipe.hopfenanzahl < RECIPE_HOP_COUNT_MIN || recipe.hopfenanzahl > RECIPE_HOP_COUNT_MAX) {
+        return {RecipeValidationError::HopCount, 0};
+    }
+    for (int i = 1; i <= recipe.hopfenanzahl; ++i) {
+        if (recipe.hopfenZeit[i] < RECIPE_HOP_TIME_MIN || recipe.hopfenZeit[i] > recipe.kochzeit) {
+            return {RecipeValidationError::HopTime, static_cast<uint8_t>(i)};
+        }
+    }
+    return {RecipeValidationError::None, 0};
+}
+
 // --- shared mapping (used by both KBH and BeerXML) ---------------------------
 
 // Mash plan -> globals: first step = Einmaischen (maischtemp), last = Abmaischen
@@ -221,6 +272,10 @@ size_t recipeToJson(const Recipe &r, char *buf, size_t n) {
     JsonArray hz = doc["hopfenZeit"].to<JsonArray>();
     for (int i = 1; i <= r.hopfenanzahl; i++) {
         hz.add(r.hopfenZeit[i]);
+    }
+    const size_t length = measureJson(doc);
+    if (length >= n) {
+        return 0;
     }
     return serializeJson(doc, buf, n);
 }

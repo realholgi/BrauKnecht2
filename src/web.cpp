@@ -36,6 +36,8 @@ static void handleConfigGet();
 static void handleConfigPost();
 static void handleRecipeGet();
 static void handleRecipeDone();
+static void handleRecipeEditGet();
+static void handleRecipeEditPost();
 static void handleRecipeUpload();
 static void handleHistory();
 static void handleManualPost();
@@ -63,6 +65,8 @@ void setupWebserver() {
     HTTP.on("/config", HTTP_POST, handleConfigPost);
     HTTP.on("/recipe", HTTP_GET, handleRecipeGet);
     HTTP.on("/recipe", HTTP_POST, handleRecipeDone, handleRecipeUpload);
+    HTTP.on("/recipe/edit", HTTP_GET, handleRecipeEditGet);
+    HTTP.on("/recipe/edit", HTTP_POST, handleRecipeEditPost);
     HTTP.on("/manual", HTTP_POST, handleManualPost);
     HTTP.on("/access-point", HTTP_POST, handleAccessPointPost);
 
@@ -749,9 +753,7 @@ static void appendRecipeCard(String &h, const Recipe &r) {
     h += r.hopfenanzahl == 1 ? F(" Hopfengabe</span>") : F(" Hopfengaben</span>");
     h += F("<span class='chip'><svg viewBox='0 0 24 24'><path d='M8 7h8'/><path d='M9 7v13h6V7'/><path d='M7 11h10'/><path d='M12 3v4'/></svg>Kochen ");
     h += r.kochzeit;
-    h += F(" min</span></div></div><span class='icon-btn' aria-hidden='true'>"
-           "<svg viewBox='0 0 24 24'><path d='M12 5v.01'/><path d='M12 12v.01'/><path d='M12 19v.01'/></svg>"
-           "</span></div></article>");
+    h += F(" min</span></div></div><a class='btn outline' href='/recipe/edit'>Rezept bearbeiten</a></article>");
 
     h += F("<article class='card'><div class='recipe-timeline'>"
            "<div class='timeline-row'><span class='timeline-icon mash'>");
@@ -814,6 +816,291 @@ static void handleRecipeGet() {
     HTTP.send(200, "text/html; charset=utf-8", h);
 }
 
+static const char *recipeEditFieldMessage(const String &field) {
+    if (field == F("name")) return "Bitte einen Rezeptnamen mit h\xC3\xB6chstens 39 UTF-8-Bytes ohne Steuerzeichen eingeben.";
+    if (field == F("maischtemp")) return "Einmaischtemperatur muss zwischen 10 und 105 \xC2\xB0C liegen.";
+    if (field == F("rasten")) return "Anzahl der Rasten muss zwischen 1 und 7 liegen.";
+    if (field.startsWith(F("rast_temp_"))) return "Rasttemperatur muss zwischen 10 und 105 \xC2\xB0C liegen.";
+    if (field.startsWith(F("rast_zeit_"))) return "Rastdauer muss zwischen 1 und 99 Minuten liegen.";
+    if (field == F("endtemp")) return "Abmaischtemperatur muss zwischen 10 und 80 \xC2\xB0C liegen.";
+    if (field == F("kochzeit")) return "Kochzeit muss zwischen 20 und 180 Minuten liegen.";
+    if (field == F("hopfenanzahl")) return "Anzahl der Hopfengaben muss zwischen 1 und 6 liegen.";
+    return "Hopfenzeit muss zwischen 0 und der Kochzeit liegen.";
+}
+
+static void sendRecipeEditError(int status, const char *code, const char *message, const String *field = nullptr) {
+    JsonDocument json;
+    json["error"] = code;
+    json["message"] = message;
+    if (field != nullptr) {
+        json["field"] = *field;
+    }
+    String response;
+    serializeJson(json, response);
+    HTTP.send(status, "application/json;charset=utf-8", response);
+}
+
+static bool parseRecipeEditNumber(const String &value, int &number) {
+    if (value.length() == 0 || value.length() > 3) return false;
+    int parsed = 0;
+    for (size_t i = 0; i < value.length(); ++i) {
+        const char character = value[i];
+        if (character < '0' || character > '9') return false;
+        parsed = parsed * 10 + (character - '0');
+    }
+    number = parsed;
+    return true;
+}
+
+static uint8_t recipeEditArgumentCount(const String &field) {
+    uint8_t count = 0;
+    for (uint8_t i = 0; i < HTTP.args(); ++i) {
+        if (HTTP.argName(i) == field) {
+            ++count;
+        }
+    }
+    return count;
+}
+
+static bool parseRecipeEditRequest(Recipe &recipe, String &errorField, String &errorMessage) {
+    recipe = Recipe{};
+    errorField = "";
+    errorMessage = "Formulardaten sind unvollst\xC3\xA4ndig oder enthalten unbekannte Felder.";
+    const char *baseFields[] = {"name", "maischtemp", "rasten", "endtemp", "kochzeit", "hopfenanzahl"};
+    for (const char *field : baseFields) {
+        if (recipeEditArgumentCount(field) != 1) return false;
+    }
+
+    String name = HTTP.arg("name");
+    name.trim();
+    if (name.length() == 0 || name.length() >= RECIPE_NAME_CAPACITY) {
+        errorField = "name";
+        errorMessage = recipeEditFieldMessage(errorField);
+        return false;
+    }
+    for (size_t i = 0; i < name.length(); ++i) {
+        const uint8_t byte = static_cast<uint8_t>(name[i]);
+        if (byte < 0x20 || byte == 0x7f) {
+            errorField = "name";
+            errorMessage = recipeEditFieldMessage(errorField);
+            return false;
+        }
+    }
+    snprintf(recipe.name, sizeof(recipe.name), "%s", name.c_str());
+
+    int rastenCount = 0;
+    int hopCount = 0;
+    if (!parseRecipeEditNumber(HTTP.arg("rasten"), rastenCount)) {
+        errorField = "rasten";
+        errorMessage = recipeEditFieldMessage(errorField);
+        return false;
+    }
+    if (!parseRecipeEditNumber(HTTP.arg("hopfenanzahl"), hopCount)) {
+        errorField = "hopfenanzahl";
+        errorMessage = recipeEditFieldMessage(errorField);
+        return false;
+    }
+    if (rastenCount < RECIPE_REST_COUNT_MIN || rastenCount > RECIPE_REST_COUNT_MAX) {
+        errorField = "rasten";
+        errorMessage = recipeEditFieldMessage(errorField);
+        return false;
+    }
+    if (hopCount < RECIPE_HOP_COUNT_MIN || hopCount > RECIPE_HOP_COUNT_MAX) {
+        errorField = "hopfenanzahl";
+        errorMessage = recipeEditFieldMessage(errorField);
+        return false;
+    }
+    recipe.rasten = rastenCount;
+    recipe.hopfenanzahl = hopCount;
+
+    const uint8_t expectedArguments = static_cast<uint8_t>(6 + 2 * rastenCount + hopCount);
+    if (HTTP.args() != expectedArguments) return false;
+    for (uint8_t i = 0; i < HTTP.args(); ++i) {
+        const String field = HTTP.argName(i);
+        bool expected = false;
+        for (const char *baseField : baseFields) {
+            if (field == baseField) expected = true;
+        }
+        for (int index = 1; index <= rastenCount; ++index) {
+            if (field == "rast_temp_" + String(index) || field == "rast_zeit_" + String(index)) expected = true;
+        }
+        for (int index = 1; index <= hopCount; ++index) {
+            if (field == "hopfen_zeit_" + String(index)) expected = true;
+        }
+        if (!expected || recipeEditArgumentCount(field) != 1) return false;
+    }
+
+    const char *scalarFields[] = {"maischtemp", "endtemp", "kochzeit"};
+    int *scalarValues[] = {&recipe.maischtemp, &recipe.endtemp, &recipe.kochzeit};
+    for (size_t i = 0; i < 3; ++i) {
+        if (!parseRecipeEditNumber(HTTP.arg(scalarFields[i]), *scalarValues[i])) {
+            errorField = scalarFields[i];
+            errorMessage = recipeEditFieldMessage(errorField);
+            return false;
+        }
+    }
+    for (int index = 1; index <= rastenCount; ++index) {
+        const String temperatureField = "rast_temp_" + String(index);
+        const String durationField = "rast_zeit_" + String(index);
+        if (!parseRecipeEditNumber(HTTP.arg(temperatureField), recipe.rastTemp[index])) {
+            errorField = temperatureField;
+            errorMessage = recipeEditFieldMessage(errorField);
+            return false;
+        }
+        if (!parseRecipeEditNumber(HTTP.arg(durationField), recipe.rastZeit[index])) {
+            errorField = durationField;
+            errorMessage = recipeEditFieldMessage(errorField);
+            return false;
+        }
+    }
+    for (int index = 1; index <= hopCount; ++index) {
+        const String field = "hopfen_zeit_" + String(index);
+        if (!parseRecipeEditNumber(HTTP.arg(field), recipe.hopfenZeit[index])) {
+            errorField = field;
+            errorMessage = recipeEditFieldMessage(errorField);
+            return false;
+        }
+    }
+
+    const RecipeValidationResult validation = validateRecipe(recipe);
+    if (validation.error == RecipeValidationError::None) return true;
+    switch (validation.error) {
+        case RecipeValidationError::MashTemperature: errorField = "maischtemp"; break;
+        case RecipeValidationError::RestCount: errorField = "rasten"; break;
+        case RecipeValidationError::RestTemperature: errorField = "rast_temp_" + String(validation.index); break;
+        case RecipeValidationError::RestDuration: errorField = "rast_zeit_" + String(validation.index); break;
+        case RecipeValidationError::MashOutTemperature: errorField = "endtemp"; break;
+        case RecipeValidationError::BoilDuration: errorField = "kochzeit"; break;
+        case RecipeValidationError::HopCount: errorField = "hopfenanzahl"; break;
+        case RecipeValidationError::HopTime: errorField = "hopfen_zeit_" + String(validation.index); break;
+        default: errorField = "name"; break;
+    }
+    errorMessage = recipeEditFieldMessage(errorField);
+    return false;
+}
+
+static void handleRecipeEditPost() {
+    if (!HTTP.hasHeader("X-BrauKnecht-Action") || HTTP.header("X-BrauKnecht-Action") != "recipe-edit") {
+        sendRecipeEditError(403, "forbidden", "Aktion nicht erlaubt.");
+        return;
+    }
+    if (regelung != REGL_AUS) {
+        sendRecipeEditError(409, "brew_active", "Rezept kann w\xC3\xA4hrend eines laufenden Brauvorgangs nicht bearbeitet werden.");
+        return;
+    }
+
+    Recipe recipe;
+    String errorField;
+    String errorMessage;
+    if (!parseRecipeEditRequest(recipe, errorField, errorMessage)) {
+        sendRecipeEditError(400, "invalid_recipe", errorMessage.c_str(), &errorField);
+        return;
+    }
+    if (!saveRecipe(recipe)) {
+        sendRecipeEditError(507, "save_failed", "Rezept konnte nicht gespeichert werden.");
+        return;
+    }
+    applyRecipe(recipe);
+    HTTP.send(204, "text/plain", "");
+}
+
+static void appendRecipeCountOptions(String &html, int value, int minimum, int maximum) {
+    if (value < minimum || value > maximum) {
+        html += F("<option selected value='");
+        html += value;
+        html += F("'>Ung&uuml;ltiger Wert: ");
+        html += value;
+        html += F("</option>");
+    }
+    for (int option = minimum; option <= maximum; ++option) {
+        html += F("<option value='");
+        html += option;
+        html += option == value ? F("' selected>") : F("'>");
+        html += option;
+        html += F("</option>");
+    }
+}
+
+static void handleRecipeEditGet() {
+    const Recipe recipe = currentRecipe();
+    const bool brewActive = regelung != REGL_AUS;
+    String html = pageHead("Rezept bearbeiten", "Rezept");
+    html += F("<form id='recipe-edit-form' class='settings-form' novalidate><fieldset class='recipe-editor-fieldset'");
+    if (brewActive) html += F(" disabled");
+    html += F("><article class='card'><h2>Allgemein</h2><label for='name'>Rezeptname</label><input id='name' name='name' required maxlength='39' value=\"");
+    html += htmlEscape(recipe.name);
+    html += F("\"></article><article class='card'><h2>Maischen</h2><div class='field-grid two'><div><label for='maischtemp'>Einmaischtemperatur (&deg;C)</label><input id='maischtemp' name='maischtemp' required type='number' inputmode='numeric' step='1' min='10' max='105' value='");
+    html += recipe.maischtemp;
+    html += F("'></div><div><label for='rasten'>Anzahl der Rasten</label><select id='rasten' name='rasten' required>");
+    appendRecipeCountOptions(html, recipe.rasten, RECIPE_REST_COUNT_MIN, RECIPE_REST_COUNT_MAX);
+    html += F("</select></div></div><div id='recipe-rests'>");
+    for (int index = 1; index <= RECIPE_REST_COUNT_MAX; ++index) {
+        html += F("<div class='recipe-editor-row' data-rest='");
+        html += index;
+        html += F("'><div><label for='rast_temp_");
+        html += index;
+        html += F("'>");
+        html += index;
+        html += F(". Rasttemperatur (&deg;C)</label><input id='rast_temp_");
+        html += index;
+        html += F("' name='rast_temp_");
+        html += index;
+        html += F("' required type='number' inputmode='numeric' step='1' min='10' max='105' value='");
+        html += recipe.rastTemp[index];
+        html += F("'></div><div><label for='rast_zeit_");
+        html += index;
+        html += F("'>");
+        html += index;
+        html += F(". Rastdauer (Minuten)</label><input id='rast_zeit_");
+        html += index;
+        html += F("' name='rast_zeit_");
+        html += index;
+        html += F("' required type='number' inputmode='numeric' step='1' min='1' max='99' value='");
+        html += recipe.rastZeit[index];
+        html += F("'></div></div>");
+    }
+    html += F("</div><label for='endtemp'>Abmaischtemperatur (&deg;C)</label><input id='endtemp' name='endtemp' required type='number' inputmode='numeric' step='1' min='10' max='80' value='");
+    html += recipe.endtemp;
+    html += F("'></article><article class='card'><h2>Kochen</h2><div class='field-grid two'><div><label for='kochzeit'>Kochzeit (Minuten)</label><input id='kochzeit' name='kochzeit' required type='number' inputmode='numeric' step='1' min='20' max='180' value='");
+    html += recipe.kochzeit;
+    html += F("'></div><div><label for='hopfenanzahl'>Anzahl der Hopfengaben</label><select id='hopfenanzahl' name='hopfenanzahl' required>");
+    appendRecipeCountOptions(html, recipe.hopfenanzahl, RECIPE_HOP_COUNT_MIN, RECIPE_HOP_COUNT_MAX);
+    html += F("</select></div></div><div id='recipe-hops'>");
+    for (int index = 1; index <= RECIPE_HOP_COUNT_MAX; ++index) {
+        html += F("<div class='recipe-editor-row' data-hop='");
+        html += index;
+        html += F("'><div><label for='hopfen_zeit_");
+        html += index;
+        html += F("'>");
+        html += index;
+        html += F(". Hopfengabe</label><input id='hopfen_zeit_");
+        html += index;
+        html += F("' name='hopfen_zeit_");
+        html += index;
+        html += F("' required type='number' inputmode='numeric' step='1' min='0' max='");
+        html += recipe.kochzeit;
+        html += F("' value='");
+        html += recipe.hopfenZeit[index];
+        html += F("'><p class='small'>Minuten nach Kochbeginn</p></div></div>");
+    }
+    html += F("</div></article></fieldset><p id='recipe-edit-error' class='alert");
+    if (brewActive) html += F(" visible");
+    html += F("' role='alert'>");
+    if (brewActive) html += F("Rezept kann w&auml;hrend eines laufenden Brauvorgangs nicht bearbeitet werden.");
+    html += F("</p><div class='recipe-editor-actions'><a class='btn outline' href='/recipe'>Abbrechen</a><button id='recipe-save' class='btn' type='submit'");
+    if (brewActive) html += F(" disabled");
+    html += F(">Speichern</button></div></form><script>(function(){"
+              "const form=document.getElementById('recipe-edit-form'),fieldset=form.querySelector('fieldset'),save=document.getElementById('recipe-save'),error=document.getElementById('recipe-edit-error'),rests=document.querySelectorAll('[data-rest]'),hops=document.querySelectorAll('[data-hop]'),restCount=document.getElementById('rasten'),hopCount=document.getElementById('hopfenanzahl'),boil=document.getElementById('kochzeit'),name=document.getElementById('name');"
+              "function toggle(rows,count){rows.forEach(row=>{const active=Number(row.dataset.rest||row.dataset.hop)<=Number(count.value);row.hidden=!active;row.querySelectorAll('input').forEach(input=>input.disabled=!active);});}"
+              "function sync(){toggle(rests,restCount);toggle(hops,hopCount);hops.forEach(row=>row.querySelector('input').max=boil.value);}"
+              "function show(message,field){error.textContent=message;error.classList.add('visible');const input=document.getElementById(field);if(input)input.focus();}"
+              "restCount.addEventListener('change',sync);hopCount.addEventListener('change',sync);boil.addEventListener('input',sync);sync();"
+              "form.addEventListener('submit',async event=>{event.preventDefault();error.classList.remove('visible');if(!form.reportValidity())return;const trimmed=name.value.trim(),bytes=new TextEncoder().encode(trimmed);if(bytes.length<1||bytes.length>39||/[\\x00-\\x1F\\x7F]/.test(trimmed)){show('Bitte einen Rezeptnamen mit höchstens 39 UTF-8-Bytes ohne Steuerzeichen eingeben.','name');return;}name.value=trimmed;save.disabled=true;try{const response=await fetch('/recipe/edit',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8','X-BrauKnecht-Action':'recipe-edit'},body:new URLSearchParams(new FormData(form)).toString()});if(response.status===204){location.href='/recipe';return;}let body;try{body=await response.json();}catch(_){throw new Error();}show(body.message||'Rezept konnte nicht gespeichert werden. Verbindung zum BrauKnecht prüfen.',body.field||'');if(response.status===409){fieldset.disabled=true;save.disabled=true;}else{save.disabled=false;}}catch(_){show('Rezept konnte nicht gespeichert werden. Verbindung zum BrauKnecht prüfen.','');save.disabled=false;}});"
+              "})();</script>");
+    html += pageFoot("Rezept");
+    HTTP.send(200, "text/html; charset=utf-8", html);
+}
+
 // Streams the multipart upload to a temp file on LittleFS.
 static void handleRecipeUpload() {
     EncoderTimerGuard guard;  // pause timer1 ISR during the flash writes
@@ -863,8 +1150,14 @@ static void handleRecipeDone() {
         return;
     }
 
+    if (!saveRecipe(r)) {
+        HTTP.send(507, "text/html; charset=utf-8",
+                  pageHead("Import fehlgeschlagen", "Rezept") +
+                      F("<div class='card'>Rezept konnte nicht gespeichert werden.</div>") +
+                      pageFoot("Rezept"));
+        return;
+    }
     applyRecipe(r);
-    saveRecipe(r);
 
     String h = pageHead("Importiert", "Rezept");
     appendRecipeCard(h, r);

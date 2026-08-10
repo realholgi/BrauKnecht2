@@ -58,7 +58,7 @@ int endtemp = 78;
 int kochzeit = 60;
 int hopfenanzahl = 2;
 int hopfenZeit[] = {0, 10, 50, 80, 80, 40, 40};
-char recipeName[40] = "Standardrezept";
+char recipeName[RECIPE_NAME_CAPACITY] = "Standardrezept";
 
 int timer = 10;
 float isttemp = 20;

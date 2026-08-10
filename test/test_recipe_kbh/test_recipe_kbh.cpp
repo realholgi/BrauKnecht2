@@ -78,6 +78,15 @@ void test_recipe_round_trip(void) {
     size_t n = recipeToJson(in, buf, sizeof(buf));
     TEST_ASSERT_GREATER_THAN(0, n);
 
+    char tooSmall[8];
+    for (size_t i = 0; i < sizeof(tooSmall); ++i) {
+        tooSmall[i] = 'X';
+    }
+    TEST_ASSERT_EQUAL_UINT(0, recipeToJson(in, tooSmall, sizeof(tooSmall)));
+    for (size_t i = 0; i < sizeof(tooSmall); ++i) {
+        TEST_ASSERT_EQUAL_CHAR('X', tooSmall[i]);
+    }
+
     Recipe out;
     TEST_ASSERT_TRUE(recipeFromJson(buf, out));
     TEST_ASSERT_EQUAL_STRING(in.name, out.name);

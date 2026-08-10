@@ -8,7 +8,7 @@
 #include "input.h"
 
 void applyRecipe(const Recipe &r) {
-    snprintf(recipeName, 40, "%s", r.name);
+    snprintf(recipeName, RECIPE_NAME_CAPACITY, "%s", r.name);
     maischtemp = r.maischtemp;
     rasten = r.rasten;
     for (int i = 1; i <= r.rasten; i++) {
@@ -70,14 +70,29 @@ bool parseBeerXmlStream(Stream &in, Recipe &r) {
 
 bool saveRecipe(const Recipe &r) {
     EncoderTimerGuard guard;  // pause timer1 ISR during the flash write
+    const char *temporaryPath = "/recipe.json.tmp";
     char buf[512];
-    size_t len = recipeToJson(r, buf, sizeof(buf));
-    File f = LittleFS.open("/recipe.json", "w");
+    const size_t len = recipeToJson(r, buf, sizeof(buf));
+    if (len == 0) {
+        LittleFS.remove(temporaryPath);
+        return false;
+    }
+
+    LittleFS.remove(temporaryPath);
+    File f = LittleFS.open(temporaryPath, "w");
     if (!f) {
         return false;
     }
-    f.write(reinterpret_cast<const uint8_t *>(buf), len);
+    const size_t written = f.write(reinterpret_cast<const uint8_t *>(buf), len);
     f.close();
+    if (written != len) {
+        LittleFS.remove(temporaryPath);
+        return false;
+    }
+    if (!LittleFS.rename(temporaryPath, "/recipe.json")) {
+        LittleFS.remove(temporaryPath);
+        return false;
+    }
     return true;
 }
 

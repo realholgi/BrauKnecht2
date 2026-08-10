@@ -86,6 +86,7 @@ a{color:inherit}
 .manual-card .btn svg{stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .status-ok{color:var(--ok)} .status-heat{color:var(--heat)} .status-warn{color:var(--warn)} .status-neutral{color:var(--accent)}
 .alert{display:none;padding:12px;border:1px solid rgba(185,64,56,.25);border-radius:var(--radius);background:#fff0ee;color:var(--warn);font-weight:600;text-align:center}
+.alert.visible{display:block}
 .rows{display:grid;gap:0;margin:0;padding:0;list-style:none}
 .row,.rows li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--border)}
 .row:first-child,.rows li:first-child{border-top:0}
@@ -97,12 +98,17 @@ input[type=file]{padding:8px 10px}
 .field-grid{display:grid;gap:10px}
 .settings-form{display:grid;gap:14px}
 .settings-actions{display:flex;justify-content:flex-start}
+.recipe-editor-fieldset{display:grid;gap:14px;margin:0;padding:0;border:0;min-width:0}
+.recipe-editor-row{display:grid;gap:10px;margin-top:12px}
+.recipe-editor-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end}
 .section-title{display:flex;align-items:center;gap:10px;margin:0 0 14px;color:var(--text);font-size:1.2rem;font-weight:500}
 .section-title svg{width:22px;height:22px;stroke:currentColor;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round}
 .inline-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:end}
 .btn{min-height:44px;padding:0 22px;border:0;border-radius:6px;background:linear-gradient(180deg,#1d66df,#0b57d0);color:#fff;font-weight:600;cursor:pointer}
 .btn.full{width:100%;margin-top:0}
 .btn.outline{background:#fff;color:var(--accent);border:1px solid #8ab4f8}
+.btn{display:inline-flex;align-items:center;justify-content:center;text-decoration:none}
+.btn:disabled{cursor:not-allowed;opacity:.6}
 .pill{display:inline-flex;align-items:center;min-height:26px;padding:0 9px;border-radius:999px;border:1px solid #9fd4aa;background:#effaf1;color:#1f7a35;font-size:.82rem;font-weight:500}
 .chip-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
 .chip{display:inline-flex;align-items:center;gap:8px;min-height:38px;padding:0 12px;border:1px solid var(--border);border-radius:6px;background:#fff;font-size:.9rem}
@@ -163,6 +169,7 @@ canvas{width:100%;height:100%;display:block}
   .dashboard-grid{grid-template-columns:minmax(0,1fr) 360px}
   .history-grid{grid-template-columns:minmax(0,1fr) 280px}
   .field-grid.two{grid-template-columns:1fr 1fr}
+  .recipe-editor-row{grid-template-columns:1fr 1fr}
   .field-grid.three{grid-template-columns:1.2fr .45fr .7fr}
   .hero-card{grid-template-columns:minmax(0,1fr) 420px;align-items:end}
   .hero-title{font-size:2.2rem}
