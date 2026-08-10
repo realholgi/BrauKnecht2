@@ -93,14 +93,6 @@ void setup() {
 
     encoder1.setButtonHeldEnabled(true);
     encoder1.setDoubleClickEnabled(false);
-#ifndef DEBUG
-    for (x = 1; x <= 3; x++) {
-      beeperOnOff(true);
-      delay(200);
-      beeperOnOff(false);
-      delay(200);
-    }
-#endif
 
     x = 1;
     lcd_clear();
