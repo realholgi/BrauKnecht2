@@ -534,11 +534,12 @@ static String htmlEscape(const char *value) {
 }
 
 static void appendNavLink(String &h, const char *href, const char *label, const char *icon, const char *active) {
+    const bool isActive = strcmp(active, label) == 0;
     h += F("<a class='nav-link");
-    if (strcmp(active, label) == 0) {
-        h += F(" active");
-    }
-    h += F("' href='");
+    if (isActive) h += F(" active");
+    h += F("'");
+    if (isActive) h += F(" aria-current='page'");
+    h += F(" href='");
     h += href;
     h += F("'>");
     h += icon;
@@ -553,6 +554,9 @@ static void appendNav(String &h, const char *active, bool bottom) {
     static const char *recipeIcon = "<svg viewBox='0 0 24 24'><path d='M7 3h7l4 4v14H7z'/><path d='M14 3v5h5'/><path d='M10 13h5'/><path d='M10 17h5'/></svg>";
     static const char *settingsIcon = "<svg viewBox='0 0 24 24'><path d='M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z'/><path d='M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21a2 2 0 1 1-4 0v-.09A1.7 1.7 0 0 0 8.97 19.4a1.7 1.7 0 0 0-1.88.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15 1.7 1.7 0 0 0 3.04 14H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.97a1.7 1.7 0 0 0-.34-1.88l-.06-.06A2 2 0 1 1 7.03 4.2l.06.06A1.7 1.7 0 0 0 8.97 4.6 1.7 1.7 0 0 0 10 3.04V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1.03 1.51 1.7 1.7 0 0 0 1.88-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.88A1.7 1.7 0 0 0 20.96 10H21a2 2 0 1 1 0 4h-.09A1.7 1.7 0 0 0 19.4 15Z'/></svg>";
     h += bottom ? F("<nav class='bottom-nav' aria-label='Navigation'>") : F("<nav class='side-nav' aria-label='Navigation'>");
+    if (!bottom) {
+        h += F("<a class='brand' href='/' aria-label='BrauKnecht Dashboard'><span class='brand-mark' aria-hidden='true'><svg viewBox='0 0 48 48'><path d='M10 39C10 22 19 10 36 9c0 17-12 29-26 30Z'/><path d='M12 37 35 12'/><path d='M19 29h9'/><path d='M24 22h8'/></svg></span><span class='brand-name'>BRAU<span>KNECHT</span></span><span class='brand-sub'>STEUERUNG</span></a>");
+    }
     appendNavLink(h, "/", "Dashboard", dashIcon, active);
     appendNavLink(h, "/history", "Verlauf", histIcon, active);
     appendNavLink(h, "/recipe", "Rezept", recipeIcon, active);
@@ -565,7 +569,7 @@ static String pageHead(const char *title, const char *active) {
                  "<meta name='viewport' content='width=device-width,initial-scale=1,viewport-fit=cover'>"
                  "<link rel='icon' href='data:,'><link rel='stylesheet' href='/style.css'><title>");
     h += title;
-    h += F("</title></head><body><main class='app'><div class='topbar'><div class='brand'>BrauKnecht</div></div><div class='layout'>");
+    h += F("</title></head><body><main class='app'><div class='topbar'><a class='brand' href='/' aria-label='BrauKnecht Dashboard'><span class='brand-mark' aria-hidden='true'><svg viewBox='0 0 48 48'><path d='M10 39C10 22 19 10 36 9c0 17-12 29-26 30Z'/><path d='M12 37 35 12'/><path d='M19 29h9'/><path d='M24 22h8'/></svg></span><span class='brand-name'>BRAU<span>KNECHT</span></span><span class='brand-sub'>STEUERUNG</span></a></div><div class='layout'>");
     appendNav(h, active, false);
     h += F("<section class='grid'><h1 class='page-title'>");
     h += title;
@@ -658,27 +662,27 @@ static void handleConfigGet() {
     h += F("<form class='settings-form' method='POST' action='/config'>"
            "<article class='card'><div class='section-title'>"
            "<svg viewBox='0 0 24 24'><path d='M5 12.5a10 10 0 0 1 14 0'/><path d='M8.5 16a5 5 0 0 1 7 0'/><path d='M12 20h.01'/></svg>"
-           "<span>WLAN</span></div><div class='field-grid two'><div><label>SSID</label><select name='sta_ssid'>");
+           "<span>WLAN</span></div><div class='field-grid two'><div><label for='sta_ssid'>SSID</label><select id='sta_ssid' name='sta_ssid'>");
     h += opts;
-    h += F("</select></div><div><label>Passwort</label><input name='sta_pass' type='password' placeholder='unver&auml;ndert'></div></div>"
+    h += F("</select></div><div><label for='sta_pass'>Passwort</label><input id='sta_pass' name='sta_pass' type='password' placeholder='unver&auml;ndert'></div></div>"
            "<p class='small'>AP wird nach erfolgreicher WLAN-Verbindung automatisch ausgeschaltet und kann am Ger&auml;t oder hier tempor&auml;r geschaltet werden.</p></article>"
            "<article class='card'><div class='section-title'>"
            "<svg viewBox='0 0 24 24'><circle cx='12' cy='5' r='2'/><circle cx='5' cy='19' r='2'/><circle cx='19' cy='19' r='2'/><path d='M12 7v4'/><path d='M12 11 5 17'/><path d='M12 11l7 6'/></svg>"
-           "<span>MQTT</span></div><div class='field-grid three'><div><label>Host</label><input name='mqtt_host' value=\"");
+           "<span>MQTT</span></div><div class='field-grid two'><div><label for='mqtt_host'>Host</label><input id='mqtt_host' name='mqtt_host' value=\"");
     h += htmlEscape(settings.mqtt_host);
-    h += F("\"></div><div><label>Port</label><input name='mqtt_port' inputmode='numeric' value='");
+    h += F("\"></div><div><label for='mqtt_port'>Port</label><input id='mqtt_port' name='mqtt_port' inputmode='numeric' value='");
     h += settings.mqtt_port;
-    h += F("'></div><div><label>User</label><input name='mqtt_user' value=\"");
+    h += F("'></div><div><label for='mqtt_user'>User</label><input id='mqtt_user' name='mqtt_user' value=\"");
     h += htmlEscape(settings.mqtt_user);
-    h += F("</div><label>Passwort</label><input name='mqtt_pass' type='password' placeholder='unver&auml;ndert'></article>"
+    h += F("\"></div><div><label for='mqtt_pass'>Passwort</label><input id='mqtt_pass' name='mqtt_pass' type='password' placeholder='unver&auml;ndert'></div></div></article>"
            "<article class='card'><div class='section-title'>"
            "<svg viewBox='0 0 24 24'><path d='M12 3v18'/><path d='M5 7h14'/><path d='M5 17h14'/><path d='M7 3h10v18H7z'/></svg>"
-           "<span>Brauen</span></div><label>Kochschwelle (&deg;C)</label><input name='kschwelle' type='number' inputmode='numeric' min='20' max='99' value='");
+           "<span>Brauen</span></div><label for='kschwelle'>Kochschwelle (&deg;C)</label><input id='kschwelle' name='kschwelle' type='number' inputmode='numeric' min='20' max='99' value='");
     h += kschwelle;
     h += F("'><p class='small'>Die Kochschwelle entspricht der Einstellung unter Setup am Ger&auml;t.</p>"
            "<div class='section-title'><span>Access Point</span></div><p class='small'>Aktuell ");
     h += isAccessPointEnabled() ? F("eingeschaltet.") : F("ausgeschaltet.");
-    h += F("</p><button class='btn full' type='submit' formaction='/access-point' name='access_point' value='");
+    h += F("</p><button class='btn outline' type='submit' formaction='/access-point' name='access_point' value='");
     h += isAccessPointEnabled() ? F("off'>Access Point ausschalten") : F("on'>Access Point einschalten");
     h += F("</button></article>");
     appendDeviceInfoCard(h);
@@ -723,7 +727,7 @@ static void handleConfigPost() {
     saveSettings(settings);
 
     HTTP.send(200, "text/html; charset=utf-8",
-              pageHead("Neustart", "Einstellungen") + F("<div class='card'>Gespeichert. Neustart&hellip;</div>") + pageFoot("Einstellungen"));
+              pageHead("Neustart", "Einstellungen") + F("<div class='state-card success'>Gespeichert. Neustart&hellip;</div>") + pageFoot("Einstellungen"));
     delay(1000);
     ESP.restart();
 }
@@ -809,8 +813,8 @@ static void handleRecipeGet() {
     appendRecipeCard(h, cur);
     h += F("<form class='card' method='POST' action='/recipe' enctype='multipart/form-data'>"
            "<div class='import-title'><svg viewBox='0 0 24 24'><path d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/><path d='M14 2v6h6'/><path d='M12 18v-8'/><path d='M8 14l4-4 4 4'/></svg><span>Rezept importieren</span></div>"
-           "<label>JSON oder BeerXML</label>"
-           "<input type='file' name='recipe' accept='.json,.xml'>"
+           "<label for='recipe-import'>JSON oder BeerXML</label>"
+           "<input id='recipe-import' type='file' name='recipe' accept='.json,.xml'>"
            "<button class='btn full' type='submit'>Importieren</button></form>");
     h += pageFoot("Rezept");
     HTTP.send(200, "text/html; charset=utf-8", h);
@@ -1145,7 +1149,7 @@ static void handleRecipeDone() {
     if (!ok) {
         HTTP.send(400, "text/html; charset=utf-8",
                   pageHead("Import fehlgeschlagen", "Rezept") +
-                      F("<div class='card'>Kein g&uuml;ltiges Kleiner-Brauhelfer JSON oder BeerXML.</div>") +
+                      F("<div class='state-card danger' role='alert'>Kein g&uuml;ltiges Kleiner-Brauhelfer JSON oder BeerXML.</div>") +
                       pageFoot("Rezept"));
         return;
     }
@@ -1153,13 +1157,14 @@ static void handleRecipeDone() {
     if (!saveRecipe(r)) {
         HTTP.send(507, "text/html; charset=utf-8",
                   pageHead("Import fehlgeschlagen", "Rezept") +
-                      F("<div class='card'>Rezept konnte nicht gespeichert werden.</div>") +
+                      F("<div class='state-card danger' role='alert'>Rezept konnte nicht gespeichert werden.</div>") +
                       pageFoot("Rezept"));
         return;
     }
     applyRecipe(r);
 
     String h = pageHead("Importiert", "Rezept");
+    h += F("<div class='state-card success'>Rezept wurde importiert.</div>");
     appendRecipeCard(h, r);
     h += pageFoot("Rezept");
     HTTP.send(200, "text/html; charset=utf-8", h);
