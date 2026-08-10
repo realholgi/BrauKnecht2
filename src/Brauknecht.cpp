@@ -22,7 +22,6 @@
 #include "screens.h"
 #include "history_store.h"
 
-static void watchdogSetup();
 
 #ifdef DEBUG
 unsigned long serwartezeit = 0;
@@ -73,6 +72,13 @@ void setup() {
     Serial.begin(115200);
     Serial.println("BK Start");
 #endif
+    // Keep both outputs safe from the first instruction after reset. In
+    // particular, D8 drives the beeper and must not float through the splash.
+    pinMode(heizungPin, OUTPUT);
+    heizungOnOff(false);
+    pinMode(beeperPin, OUTPUT);
+    beeperOnOff(false);
+
 
     lcd_init();
 
@@ -86,11 +92,6 @@ void setup() {
 
     drehen = sollwert;
 
-    pinMode(heizungPin, OUTPUT);
-    pinMode(beeperPin, OUTPUT);
-
-    heizungOnOff(false);
-    beeperOnOff(false);
 
     encoder1.setButtonHeldEnabled(true);
     encoder1.setDoubleClickEnabled(false);
@@ -110,7 +111,6 @@ void setup() {
         applyRecipe(rcp);
     }
 
-    watchdogSetup();
 
     setupWIFI();
 
@@ -118,7 +118,17 @@ void setup() {
     // timer1 encoder ISR while flashing so it can't run library code from flash
     // mid-erase. mDNS is already up (setupWIFI), so just advertise the service.
     ArduinoOTA.setHostname("bk");
-    ArduinoOTA.onStart([]() { encoderTimerPause(); });
+    ArduinoOTA.onStart([]() {
+        encoderTimerPause();
+    });
+    ArduinoOTA.onProgress([](unsigned int, unsigned int) {
+        // Update.write() runs outside loop(); preserve the watchdog's normal
+        // protection while its flash writes are in progress.
+        wdt_reset();
+    });
+    ArduinoOTA.onError([](ota_error_t) {
+        encoderTimerResume();
+    });
     ArduinoOTA.begin(false);
     MDNS.enableArduino(8266);
 
@@ -230,9 +240,6 @@ void loop() {
     wdt_reset();
 }
 
-static void watchdogSetup() {
-    wdt_enable(WDTO_2S);
-}
 
 extern "C" void custom_crash_callback(struct rst_info *, uint32_t, uint32_t) {
     heizungOnOff(false);
